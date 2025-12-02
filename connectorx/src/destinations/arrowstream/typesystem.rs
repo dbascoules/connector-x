@@ -2,6 +2,15 @@ use crate::impl_typesystem;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use rust_decimal::Decimal;
 
+#[derive(Debug, Clone, Copy)]
+pub struct DateTimeWrapperMicro(pub DateTime<Utc>);
+
+#[derive(Debug, Clone, Copy)]
+pub struct NaiveTimeWrapperMicro(pub NaiveTime);
+
+#[derive(Debug, Clone, Copy)]
+pub struct NaiveDateTimeWrapperMicro(pub NaiveDateTime);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ArrowTypeSystem {
     Int32(bool),
@@ -16,8 +25,11 @@ pub enum ArrowTypeSystem {
     LargeBinary(bool),
     Date32(bool),
     Date64(bool),
+    Date64Micro(bool),
     Time64(bool),
+    Time64Micro(bool),
     DateTimeTz(bool),
+    DateTimeTzMicro(bool),
     Float32Array(bool),
 }
 
@@ -36,8 +48,11 @@ impl_typesystem! {
         { LargeBinary     => Vec<u8>            }
         { Date32          => NaiveDate          }
         { Date64          => NaiveDateTime      }
+        { Date64Micro     => NaiveDateTimeWrapperMicro }
         { Time64          => NaiveTime          }
+        { Time64Micro     => NaiveTimeWrapperMicro }
         { DateTimeTz      => DateTime<Utc>      }
+        { DateTimeTzMicro => DateTimeWrapperMicro }
         { Float32Array    => Vec<Option<f32>>   }
     }
 }
