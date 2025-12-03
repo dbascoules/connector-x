@@ -1,0 +1,63 @@
+name: Build connectorx wheels (internal)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [david]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libpq-dev \
+            libssl-dev \
+            libclang-dev \
+            zlib1g-dev \
+            git \
+            curl
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Download Oracle Instant Client (Basic Lite)
+        run: |
+          wget https://download.oracle.com/otn_software/linux/instantclient/2120000/instantclient-basiclite-linux.x64-21.20.0.0.0dbru.zip
+          unzip instantclient-basiclite-linux.x64-21.20.0.0.0dbru.zip -d /opt
+          echo "/opt/instantclient_21_20" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/opt/instantclient_21_20" >> $GITHUB_ENV
+
+      - name: Build wheel
+        run: |
+          cd connectorx-python
+          maturin build \
+            --release \
+            --interpreter python
+
+      - name: Upload wheel as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: connectorx-wheel-linux-py${{ matrix.python-version }}
+          path: connectorx-python/target/wheels/*.whl
+          retention-days: 1
