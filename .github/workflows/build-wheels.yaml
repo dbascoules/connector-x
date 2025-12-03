@@ -29,6 +29,8 @@ jobs:
             libssl-dev \
             libclang-dev \
             zlib1g-dev \
+            libgssapi-krb5-2 \
+            libkrb5-dev \
             git \
             curl
 
