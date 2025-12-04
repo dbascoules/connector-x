@@ -1,65 +1,92 @@
-name: Build connectorx wheels (internal)
+name: release
 
 on:
-  workflow_dispatch:
   push:
-    branches: [david]
+    branches:
+      - david
 
 jobs:
-  build-linux:
+  linux:
     runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
+    strategy:
+      matrix:
+        python-version: [[313, "3.13"]]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set python version
+        run: |
+          echo "/opt/python/cp${{ matrix.python-version[0] }}-cp${{ matrix.python-version[0] }}/bin" >> $GITHUB_PATH
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+          target: aarch64-unknown-linux-gnu
+          default: true
+
+      - uses: extractions/setup-just@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Gr1N/setup-poetry@v9
+
+      - name: Install tools
+        run: |
+          yum install -y epel-release
+          yum install -y mysql-devel postgresql-devel freetds-devel krb5-libs clang-devel
+
+      - name: Setup project
+        run: |
+          just bootstrap-python
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          rust-toolchain: stable
+          command: build
+          args: -m connectorx-python/Cargo.toml -i python --release --manylinux 2_28 --features integrated-auth-gssapi
+          before-script-linux: |
+            # If we're running on rhel centos, install needed packages.
+            if command -v yum &> /dev/null; then
+                yum update -y && yum install -y perl-core openssl openssl-devel pkgconfig libatomic
+
+                # If we're running on i686 we need to symlink libatomic
+                # in order to build openssl with -latomic flag.
+                if [[ ! -d "/usr/lib64" ]]; then
+                    ln -s /usr/lib/libatomic.so.1 /usr/lib/libatomic.so
+                fi
+            else
+                # If we're running on debian-based system.
+                apt update -y && apt-get install -y libssl-dev openssl pkg-config
+            fi
+        env:
+          SQLITE3_STATIC: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "ubuntu-latest-${{ matrix.python-version[1] }}"
+          path: connectorx-python/target/wheels/*.whl
+
+  verify:
+    runs-on: ${{ matrix.os }}
+    needs: [linux]
     strategy:
       matrix:
         python-version: ["3.13"]
+        os: [ubuntu-latest]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: x64
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            libpq-dev \
-            libssl-dev \
-            libclang-dev \
-            zlib1g-dev \
-            libgssapi-krb5-2 \
-            libkrb5-dev \
-            git \
-            curl
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/download-artifact@v4
         with:
-          toolchain: stable
-          override: true
+          name: "${{ matrix.os }}-${{ matrix.python-version }}"
 
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Download Oracle Instant Client (Basic Lite)
-        run: |
-          wget https://download.oracle.com/otn_software/linux/instantclient/2120000/instantclient-basiclite-linux.x64-21.20.0.0.0dbru.zip
-          unzip instantclient-basiclite-linux.x64-21.20.0.0.0dbru.zip -d /opt
-          echo "/opt/instantclient_21_20" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=/opt/instantclient_21_20" >> $GITHUB_ENV
-
-      - name: Build wheel
-        run: |
-          cd connectorx-python
-          maturin build \
-            --release \
-            --interpreter python
-
-      - name: Upload wheel as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: connectorx-wheel-linux-py${{ matrix.python-version }}
-          path: connectorx-python/target/wheels/*.whl
-          retention-days: 1
+      - run: |
+          pip install *.whl
+          python -c "import connectorx"
