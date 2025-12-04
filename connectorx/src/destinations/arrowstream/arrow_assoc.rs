@@ -3,7 +3,7 @@ use super::typesystem::{DateTimeWrapperMicro, NaiveDateTimeWrapperMicro, NaiveTi
 use crate::constants::{DEFAULT_ARROW_DECIMAL, DEFAULT_ARROW_DECIMAL_SCALE, SECONDS_IN_DAY};
 use crate::utils::decimal_to_i128;
 use arrow::array::{
-    ArrayBuilder, BooleanBuilder, Date32Builder, Date64Builder, Decimal128Builder, Float32Builder,
+    ArrayBuilder, BooleanBuilder, Date32Builder, Decimal128Builder, Float32Builder,
     Float64Builder, Int32Builder, Int64Builder, LargeBinaryBuilder, LargeListBuilder,
     StringBuilder, Time64NanosecondBuilder, Time64MicrosecondBuilder, TimestampNanosecondBuilder, TimestampMicrosecondBuilder, UInt32Builder,
     UInt64Builder,
@@ -281,7 +281,9 @@ fn naive_date_to_arrow(nd: NaiveDate) -> i32 {
 }
 
 fn naive_datetime_to_arrow(nd: NaiveDateTime) -> i64 {
-    nd.and_utc().timestamp_millis()
+    nd.and_utc()
+        .timestamp_nanos_opt()
+        .unwrap_or_else(|| panic!("out of range DateTime"))
 }
 
 impl ArrowAssoc for Option<NaiveDate> {
@@ -319,10 +321,10 @@ impl ArrowAssoc for NaiveDate {
 }
 
 impl ArrowAssoc for Option<NaiveDateTime> {
-    type Builder = Date64Builder;
+    type Builder = TimestampNanosecondBuilder;
 
     fn builder(nrows: usize) -> Self::Builder {
-        Date64Builder::with_capacity(nrows)
+        TimestampNanosecondBuilder::with_capacity(nrows)
     }
 
     fn append(builder: &mut Self::Builder, value: Option<NaiveDateTime>) -> Result<()> {
@@ -331,15 +333,19 @@ impl ArrowAssoc for Option<NaiveDateTime> {
     }
 
     fn field(header: &str) -> Field {
-        Field::new(header, ArrowDataType::Date64, true)
+        Field::new(
+            header,
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, None),
+            true,
+        )
     }
 }
 
 impl ArrowAssoc for NaiveDateTime {
-    type Builder = Date64Builder;
+    type Builder = TimestampNanosecondBuilder;
 
     fn builder(nrows: usize) -> Self::Builder {
-        Date64Builder::with_capacity(nrows)
+        TimestampNanosecondBuilder::with_capacity(nrows)
     }
 
     fn append(builder: &mut Self::Builder, value: NaiveDateTime) -> Result<()> {
@@ -348,7 +354,11 @@ impl ArrowAssoc for NaiveDateTime {
     }
 
     fn field(header: &str) -> Field {
-        Field::new(header, ArrowDataType::Date64, false)
+        Field::new(
+            header,
+            ArrowDataType::Timestamp(TimeUnit::Nanosecond, None),
+            false,
+        )
     }
 }
 
