@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["impl_transport","impl_typesystem"],"mod":["arrow_batch_iter","constants","data_order","destinations","errors","fed_dispatcher","fed_rewriter","get_arrow","partition","prelude","source_router","sources","transports","typesystem"]};
