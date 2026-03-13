@@ -66,6 +66,39 @@ seed-db-more:
     trino $TRINO_URL --catalog=$TRINO_CATALOG < scripts/trino.sql
     clickhouse-client -h $CLICKHOUSE_HOST --port $CLICKHOUSE_PORT -u $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD -d $CLICKHOUSE_DB < scripts/clickhouse.sql
 
+seed-db-informix container="informix" db="connectorx":
+    docker exec -i {{container}} bash -lc "printf 'CREATE DATABASE {{db}};\n' | dbaccess sysadmin - >/dev/null 2>&1 || true"
+    docker exec -i {{container}} bash -lc "dbaccess {{db}} -" < scripts/informix.sql
+
+seed-db-informix-devcontainer db="connectorx":
+    docker compose -f .devcontainer/docker-compose.yml --profile informix exec -T -e INFORMIXSERVER=informix informix bash -lc "printf 'CREATE DATABASE {{db}};\n' | dbaccess sysadmin - >/dev/null 2>&1 || true"
+    docker compose -f .devcontainer/docker-compose.yml --profile informix exec -T -e INFORMIXSERVER=informix informix bash -lc "dbaccess {{db}} -" < scripts/informix.sql
+
+# Cross-compile les tests Informix pour linux/amd64 puis les exécute dans Docker.
+# Prérequis : .libdb2-x86_64/clidriver-full/ (IBM CLI Driver) et conteneur informix démarré.
+test-informix:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    CLIDIR="$(pwd)/.libdb2-x86_64"
+    echo "=== Compilation cross (x86_64-unknown-linux-gnu) ==="
+    IBM_DB_HOME="${CLIDIR}/clidriver-full" \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=zig-cc-x86 \
+      cargo test --target x86_64-unknown-linux-gnu \
+        -p connectorx --features src_informix,dst_arrow \
+        --test test_informix --no-run
+    BINARY="$(find target/x86_64-unknown-linux-gnu/debug/deps -maxdepth 1 -name 'test_informix-*' ! -name '*.d' | xargs ls -t 2>/dev/null | head -1)"
+    if [[ -z "$BINARY" ]]; then echo "ERROR: binaire de test introuvable" >&2; exit 1; fi
+    echo "=== Binaire : $BINARY ==="
+    INFORMIX_IP="$(docker inspect --format '{{{{range .NetworkSettings.Networks}}}}{{{{.IPAddress}}}}{{{{end}}}}' informix 2>/dev/null || echo 172.17.0.2)"
+    echo "=== Exécution dans Docker (informix=$INFORMIX_IP) ==="
+    docker run --rm --platform linux/amd64 \
+      --add-host "informix:${INFORMIX_IP}" \
+      -v "${BINARY}:/test_informix:ro" \
+      -v "${CLIDIR}/clidriver-full/lib:/clidriver/lib:ro" \
+      -v "${CLIDIR}/ibm_db.libs:/ibm_db_libs:ro" \
+      ubuntu:22.04 \
+      bash -c "LD_LIBRARY_PATH=/clidriver/lib:/ibm_db_libs INFORMIX_URL=informix://informix:in4mix@informix:9089/connectorx /test_informix --include-ignored --nocapture"
+
 # benches 
 flame-tpch conn="POSTGRES_URL":
     cd connectorx-python && PYO3_PYTHON=$HOME/.pyenv/versions/3.8.6/bin/python3.8 PYTHONPATH=$HOME/.pyenv/versions/conn/lib/python3.8/site-packages LD_LIBRARY_PATH=$HOME/.pyenv/versions/3.8.6/lib/ cargo run --no-default-features --features executable --features fptr --features nbstr --features dsts --features srcs --release --example flame_tpch {{conn}}

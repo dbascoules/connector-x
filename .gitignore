@@ -25,3 +25,7 @@ flake.nix
 flake.lock
 .envrc
 .direnv/
+.devcontainer/informix-csdk/*
+!.devcontainer/informix-csdk/README.md
+.libdb2-x86_64
+.tmp_*

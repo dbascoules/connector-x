@@ -5,6 +5,9 @@
     ],
     "service": "connectorx",
     "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+    "remoteEnv": {
+        "INFORMIX_URL": "informix://informix:in4mix@informix:9089/connectorx"
+    },
     "customizations": {
         "vscode": {
             "extensions": [

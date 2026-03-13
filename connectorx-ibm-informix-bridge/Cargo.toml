@@ -1,0 +1,14 @@
+[package]
+name = "ibm_informix_bridge"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal safe Rust bridge to IBM Data Server Driver (libdb2) for Informix via DRDA"
+build = "build.rs"
+
+# Cargo uniqueness guard: only one crate in a build graph can claim "db2"
+links = "db2"
+
+[dependencies]
+thiserror = "1"
+
+[dev-dependencies]

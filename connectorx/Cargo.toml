@@ -75,6 +75,7 @@ tokio = { version = "1", features = [
   "net",
 ], optional = true }
 tokio-util = { version = "0.7", features = ["compat"], optional = true }
+ibm_informix_bridge = {path = "../connectorx-ibm-informix-bridge", optional = true}
 urlencoding = { version = "2.1", optional = true }
 uuid = { version = "1", optional = true }
 uuid_old = { package = "uuid", version = "0.8", optional = true }
@@ -128,18 +129,8 @@ fptr = []
 src_bigquery = ["gcp-bigquery-client", "tokio"]
 src_csv = ["csv", "regex"]
 src_dummy = ["num-traits"]
-src_mssql = [
-  "rust_decimal",
-  "num-traits",
-  "tiberius",
-  "bb8-tiberius",
-  "bb8",
-  "tokio",
-  "tokio-util",
-  "uuid_old",
-  "futures",
-  "urlencoding",
-]
+src_informix = ["urlencoding"]
+src_mssql = ["rust_decimal", "num-traits", "tiberius", "bb8-tiberius", "bb8", "tokio", "tokio-util", "uuid_old", "futures", "urlencoding"]
 src_mysql = ["r2d2_mysql", "mysql_common", "rust_decimal", "num-traits", "r2d2"]
 src_oracle = ["oracle", "r2d2-oracle", "r2d2", "urlencoding", "rust_decimal"]
 src_postgres = [

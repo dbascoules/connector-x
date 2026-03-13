@@ -110,6 +110,10 @@ pub fn get_col_range(source_conn: &SourceConn, query: &str, col: &str) -> OutRes
         SourceType::MsSQL => mssql_get_partition_range(&source_conn.conn, query, col),
         #[cfg(feature = "src_oracle")]
         SourceType::Oracle => oracle_get_partition_range(&source_conn.conn, query, col),
+        SourceType::Informix => Err(anyhow!(
+            "partitioning is not implemented for Informix yet"
+        )
+        .into()),
         #[cfg(feature = "src_bigquery")]
         SourceType::BigQuery => bigquery_get_partition_range(&source_conn.conn, query, col),
         #[cfg(feature = "src_trino")]
@@ -148,6 +152,9 @@ pub fn get_part_query(
         #[cfg(feature = "src_oracle")]
         SourceType::Oracle => {
             single_col_partition_query(query, col, lower, upper, &OracleDialect {})?
+        }
+        SourceType::Informix => {
+            throw!(anyhow!("partitioning is not implemented for Informix yet"))
         }
         #[cfg(feature = "src_bigquery")]
         SourceType::BigQuery => {

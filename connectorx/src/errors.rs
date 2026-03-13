@@ -74,6 +74,10 @@ pub enum ConnectorXOutError {
     #[error(transparent)]
     OracleError(#[from] r2d2_oracle::oracle::Error),
 
+    #[cfg(feature = "src_informix")]
+    #[error(transparent)]
+    InformixSourceError(#[from] crate::sources::informix::InformixSourceError),
+
     #[cfg(feature = "src_bigquery")]
     #[error(transparent)]
     BigQuerySourceError(#[from] crate::sources::bigquery::BigQuerySourceError),
@@ -113,6 +117,10 @@ pub enum ConnectorXOutError {
     #[cfg(all(feature = "src_oracle", feature = "dst_arrow"))]
     #[error(transparent)]
     OracleArrowTransportError(#[from] crate::transports::OracleArrowTransportError),
+
+    #[cfg(all(feature = "src_informix", feature = "dst_arrow"))]
+    #[error(transparent)]
+    InformixArrowTransportError(#[from] crate::transports::InformixArrowTransportError),
 
     #[cfg(all(feature = "src_bigquery", feature = "dst_arrow"))]
     #[error(transparent)]

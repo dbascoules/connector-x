@@ -225,6 +225,17 @@ pub fn get_arrow(
             );
             dispatcher.run()?;
         }
+        #[cfg(feature = "src_informix")]
+        SourceType::Informix => {
+            let source = InformixSource::new(&source_conn.conn[..], queries.len())?;
+            let dispatcher = Dispatcher::<_, _, InformixArrowTransport>::new(
+                source,
+                &mut destination,
+                queries,
+                origin_query,
+            );
+            dispatcher.run()?;
+        }
         #[cfg(feature = "src_bigquery")]
         SourceType::BigQuery => {
             let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create runtime"));
@@ -462,6 +473,18 @@ pub fn new_record_batch_iter(
         SourceType::Oracle => {
             let source = OracleSource::new(&source_conn.conn[..], queries.len()).unwrap();
             let batch_iter = ArrowBatchIter::<_, OracleArrowStreamTransport>::new(
+                source,
+                destination,
+                origin_query,
+                queries,
+            )
+            .unwrap();
+            return Box::new(batch_iter);
+        }
+        #[cfg(feature = "src_informix")]
+        SourceType::Informix => {
+            let source = InformixSource::new(&source_conn.conn[..], queries.len()).unwrap();
+            let batch_iter = ArrowBatchIter::<_, InformixArrowStreamTransport>::new(
                 source,
                 destination,
                 origin_query,

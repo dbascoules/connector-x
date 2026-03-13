@@ -1,14 +1,42 @@
 services:
   connectorx:
+    # platform: linux/amd64
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
+      args:
+        INFORMIX_CLIDRIVER_URL: ${INFORMIX_CLIDRIVER_URL:-}
+        INFORMIX_CLIDRIVER_SHA256: ${INFORMIX_CLIDRIVER_SHA256:-}
+    environment:
+      IBM_DB_HOME: /opt/ibm/clidriver
+      LD_LIBRARY_PATH: /opt/ibm/clidriver/lib
     volumes:
       - ..:/workspaces/connectorx:cached
     command: sleep infinity
     depends_on:
       - postgres
       - mysql
+    networks:
+      - connectorx-network
+
+  informix:
+    image: icr.io/informix/informix-developer-database:latest
+    platform: linux/amd64
+    profiles:
+      - informix
+    privileged: true
+    environment:
+      LICENSE: accept
+      DBSERVERNAME: informix
+      INFORMIX_PASSWORD: in4mix
+    ports:
+      - "9088:9088"
+      - "9089:9089"
+      - "27017:27017"
+      - "27018:27018"
+      - "27883:27883"
+    volumes:
+      - informix_data:/opt/ibm/data
     networks:
       - connectorx-network
 
@@ -26,7 +54,7 @@ services:
       - connectorx-network
 
   mysql:
-    image: ghcr.io/wangxiaoying/mysql:latest
+    image: mysql:8
     environment:
       MYSQL_DATABASE: mysql
       MYSQL_ROOT_PASSWORD: mysql
@@ -45,4 +73,5 @@ networks:
 volumes:
   postgres_data:
   mysql_data:
+  informix_data:
     
