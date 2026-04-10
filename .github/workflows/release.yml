@@ -5,6 +5,7 @@ on:
     branches:
       - prerelease
       - release
+      - feat/default2ms
 
 jobs:
   linux:
