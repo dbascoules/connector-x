@@ -20,7 +20,7 @@ services:
       - connectorx-network
 
   informix:
-    image: icr.io/informix/informix-developer-database:latest
+    image: informix-arm64-workaround:latest
     platform: linux/amd64
     profiles:
       - informix

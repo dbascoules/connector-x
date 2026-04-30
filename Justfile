@@ -67,11 +67,11 @@ seed-db-more:
     clickhouse-client -h $CLICKHOUSE_HOST --port $CLICKHOUSE_PORT -u $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD -d $CLICKHOUSE_DB < scripts/clickhouse.sql
 
 seed-db-informix container="informix" db="connectorx":
-    docker exec -i {{container}} bash -lc "printf 'CREATE DATABASE {{db}};\n' | dbaccess sysadmin - >/dev/null 2>&1 || true"
+    docker exec -i {{container}} bash -lc "printf 'CREATE DATABASE {{db}} WITH LOG;' | dbaccess sysmaster -"
     docker exec -i {{container}} bash -lc "dbaccess {{db}} -" < scripts/informix.sql
 
 seed-db-informix-devcontainer db="connectorx":
-    docker compose -f .devcontainer/docker-compose.yml --profile informix exec -T -e INFORMIXSERVER=informix informix bash -lc "printf 'CREATE DATABASE {{db}};\n' | dbaccess sysadmin - >/dev/null 2>&1 || true"
+    docker compose -f .devcontainer/docker-compose.yml --profile informix exec -T -e INFORMIXSERVER=informix informix bash -lc "printf 'CREATE DATABASE {{db}} WITH LOG;' | dbaccess sysmaster -"
     docker compose -f .devcontainer/docker-compose.yml --profile informix exec -T -e INFORMIXSERVER=informix informix bash -lc "dbaccess {{db}} -" < scripts/informix.sql
 
 # Cross-compile les tests Informix pour linux/amd64 puis les exécute dans Docker.
