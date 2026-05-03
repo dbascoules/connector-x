@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::errors::{ConnectorXOutError, OutResult};
 use crate::source_router::{SourceConn, SourceType};
 #[cfg(feature = "src_bigquery")]
@@ -18,7 +16,8 @@ use crate::sources::postgres::{rewrite_tls_args, PostgresTypeSystem};
 use crate::sources::trino::TrinoDialect;
 #[cfg(feature = "src_sqlite")]
 use crate::sql::get_partition_range_query_sep;
-use crate::sql::{get_partition_range_query, single_col_partition_query, CXQuery};
+#[allow(unused_imports)]
+use crate::sql::{single_col_partition_query, CXQuery};
 use anyhow::anyhow;
 use fehler::{throw, throws};
 #[cfg(feature = "src_bigquery")]
@@ -51,6 +50,7 @@ use tiberius::Client;
 use tokio::{net::TcpStream, runtime::Runtime};
 #[cfg(feature = "src_mssql")]
 use tokio_util::compat::TokioAsyncWriteCompatExt;
+#[allow(unused_imports)]
 use url::Url;
 
 pub struct PartitionQuery {
@@ -98,6 +98,7 @@ pub fn partition(part: &PartitionQuery, source_conn: &SourceConn) -> OutResult<V
     Ok(queries)
 }
 
+#[allow(unused_variables)]
 pub fn get_col_range(source_conn: &SourceConn, query: &str, col: &str) -> OutResult<(i64, i64)> {
     match source_conn.ty {
         #[cfg(feature = "src_postgres")]
@@ -124,53 +125,54 @@ pub fn get_col_range(source_conn: &SourceConn, query: &str, col: &str) -> OutRes
     }
 }
 
+#[allow(unreachable_code)]
 #[throws(ConnectorXOutError)]
 pub fn get_part_query(
     source_conn: &SourceConn,
-    query: &str,
-    col: &str,
-    lower: i64,
-    upper: i64,
+    _base_query: &str,
+    _col: &str,
+    _lower: i64,
+    _upper: i64,
 ) -> CXQuery<String> {
-    let query = match source_conn.ty {
+    let _partitioned_query = match source_conn.ty {
         #[cfg(feature = "src_postgres")]
         SourceType::Postgres => {
-            single_col_partition_query(query, col, lower, upper, &PostgreSqlDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &PostgreSqlDialect {})?
         }
         #[cfg(feature = "src_sqlite")]
         SourceType::SQLite => {
-            single_col_partition_query(query, col, lower, upper, &SQLiteDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &SQLiteDialect {})?
         }
         #[cfg(feature = "src_mysql")]
         SourceType::MySQL => {
-            single_col_partition_query(query, col, lower, upper, &MySqlDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &MySqlDialect {})?
         }
         #[cfg(feature = "src_mssql")]
         SourceType::MsSQL => {
-            single_col_partition_query(query, col, lower, upper, &MsSqlDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &MsSqlDialect {})?
         }
         #[cfg(feature = "src_oracle")]
         SourceType::Oracle => {
-            single_col_partition_query(query, col, lower, upper, &OracleDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &OracleDialect {})?
         }
         SourceType::Informix => {
             throw!(anyhow!("partitioning is not implemented for Informix yet"))
         }
         #[cfg(feature = "src_bigquery")]
         SourceType::BigQuery => {
-            single_col_partition_query(query, col, lower, upper, &BigQueryDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &BigQueryDialect {})?
         }
         #[cfg(feature = "src_trino")]
         SourceType::Trino => {
-            single_col_partition_query(query, col, lower, upper, &TrinoDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &TrinoDialect {})?
         }
         #[cfg(feature = "src_clickhouse")]
         SourceType::ClickHouse => {
-            single_col_partition_query(query, col, lower, upper, &ClickHouseDialect {})?
+            single_col_partition_query(_base_query, _col, _lower, _upper, &ClickHouseDialect {})?
         }
         _ => unimplemented!("{:?} not implemented!", source_conn.ty),
     };
-    CXQuery::Wrapped(query)
+    CXQuery::Wrapped(_partitioned_query)
 }
 
 #[cfg(feature = "src_postgres")]
