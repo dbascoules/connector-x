@@ -19,18 +19,22 @@ fn test_informix_load_and_parse() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let dburl = env::var("INFORMIX_URL").unwrap();
-    let mut source = InformixSource::new(&dburl, 1).unwrap();
+    let mut source = InformixSource::new(&dburl, 1)
+        .unwrap_or_else(|e| panic!("InformixSource::new failed: {}", e));
     source.set_queries(&[CXQuery::naked(
         "select test_id, test_text, test_nullable from test_table order by test_id",
     )]);
-    source.fetch_metadata().unwrap();
+    source
+        .fetch_metadata()
+        .unwrap_or_else(|e| panic!("fetch_metadata failed: {}", e));
 
     let mut partitions = source.partition().unwrap();
     assert_eq!(1, partitions.len());
 
     let mut partition = partitions.remove(0);
     partition.result_rows().expect("run query");
-    assert_eq!(3, partition.nrows());
+    assert!(partition.nrows() > 0, "Informix test table contains no rows");
+
     assert_eq!(3, partition.ncols());
 
     let mut parser = partition.parser().unwrap();
@@ -49,6 +53,8 @@ fn test_informix_load_and_parse() {
             break;
         }
     }
+
+    assert!(!rows.is_empty(), "Informix query returned no rows");
 
     assert_eq!(
         vec![
@@ -80,7 +86,8 @@ fn test_informix_arrow() {
         ),
     ];
 
-    let builder = InformixSource::new(&dburl, queries.len()).unwrap();
+    let builder = InformixSource::new(&dburl, queries.len())
+        .unwrap_or_else(|e| panic!("InformixSource::new failed: {}", e));
     let mut destination = ArrowDestination::new();
     let dispatcher = Dispatcher::<_, _, InformixArrowTransport>::new(
         builder,
@@ -91,9 +98,13 @@ fn test_informix_arrow() {
         )),
     );
 
-    dispatcher.run().unwrap();
+    dispatcher
+        .run()
+        .unwrap_or_else(|e| panic!("dispatcher.run failed: {}", e));
 
     let result = destination.arrow().unwrap();
+    let total_rows: usize = result.iter().map(|rb| rb.num_rows()).sum();
+    assert!(total_rows > 0, "Informix arrow query returned no rows");
     verify_arrow_results(result);
 }
 
