@@ -1,7 +1,8 @@
-//! ibm_informix_bridge — minimal safe Rust wrapper over `libdb2` (IBM Data Server Driver).
+//! ibm_informix_bridge — minimal safe Rust wrapper over IBM CLI libraries.
 //!
-//! Connects to IBM Informix via the **DRDA protocol** (IBM DB2 wire, port 9089).
-//! This is completely independent of the Informix native SQLI stack (libifcli / port 9088).
+//! Build-time client selection (via `build.rs`):
+//! - `libdb2`  (DRDA, typically port 9089)
+//! - `libifcli`/`iclit09*` (Informix SQLI onsoctcp, typically port 9088)
 //!
 //! # Connection string
 //! ```
@@ -66,7 +67,6 @@ const DIAG_BUF: usize = 1024;
 // Raw FFI declarations (identical API surface for libifcli and libdb2)
 // ---------------------------------------------------------------------------
 
-#[link(name = "db2")]
 extern "C" {
     fn SQLAllocHandle(
         handle_type: c_short,

@@ -70,3 +70,12 @@ ENV PATH="/home/vscode/.local/bin:${PATH}"
 ENV IBM_DB_HOME="/opt/ibm/clidriver"
 ENV LD_LIBRARY_PATH="/opt/ibm/clidriver/lib:${LD_LIBRARY_PATH}"
 ENV PYTHONPATH="/workspaces/connector-x:${PYTHONPATH}"
+
+# Adjust UID/GID for macOS Colima compatibility
+ARG USERNAME=vscode
+ARG GROUPNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN groupmod --gid $USER_GID -o $GROUPNAME \
+    && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
+    && chown -R $USER_UID:$USER_GID /home/$USERNAME
