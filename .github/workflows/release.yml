@@ -9,7 +9,7 @@ on:
 jobs:
   linux:
     runs-on: ${{ matrix.platform.runs-on }}
-    container: quay.io/pypa/manylinux_2_28_${{ matrix.platform.arch }}
+    container: quay.io/pypa/manylinux_2_34_${{ matrix.platform.arch }}
     strategy:
       matrix:
         platform:
@@ -82,7 +82,7 @@ jobs:
         with:
           rust-toolchain: stable
           command: build
-          args: -m connectorx-python/Cargo.toml -i python --release --manylinux 2_28 --features integrated-auth-gssapi
+          args: -m connectorx-python/Cargo.toml -i python --release --manylinux 2_34 --features integrated-auth-gssapi
           before-script-linux: |
             # If we're running on rhel centos, install needed packages.
             if command -v yum &> /dev/null; then
