@@ -151,6 +151,62 @@ jobs:
       - name: Install python dependencies
         run: just bootstrap-python
 
+      - name: Download IBM DB2 CLI Driver for Informix
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          OS="$(uname -s)"
+          ARCH="$(uname -m)"
+          IBM_CDN="https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli"
+
+          case "$OS" in
+              Linux)
+                  if [[ "$ARCH" == "aarch64" ]]; then
+                      FILE="linuxx64_odbc_cli.tar.gz"
+                      EXTRACT_DIR=".libdb2-aarch64"
+                  else
+                      FILE="linuxx64_odbc_cli.tar.gz"
+                      EXTRACT_DIR=".libdb2-x86_64"
+                  fi
+                  LIB_SUBDIR="clidriver-full/lib"
+                  LIB_NAME="libdb2.so"
+                  ;;
+              *)
+                  echo "Skipping IBM CLI Driver download for $OS"
+                  exit 0
+                  ;;
+          esac
+
+          EXTRACT_PATH="${EXTRACT_DIR}"
+          LIB_PATH="${EXTRACT_PATH}/${LIB_SUBDIR}/${LIB_NAME}"
+
+          if [[ -f "$LIB_PATH" ]]; then
+              echo "✓ IBM CLI Driver already present: $LIB_PATH"
+              exit 0
+          fi
+
+          echo "📥 Downloading IBM DB2 CLI Driver: $FILE ($OS $ARCH)"
+          mkdir -p "$EXTRACT_PATH"
+          cd "$EXTRACT_PATH"
+
+          if curl -fSL "${IBM_CDN}/${FILE}" -o "${FILE}"; then
+              echo "✓ Download completed"
+              echo "📦 Extracting TAR.GZ..."
+              tar -xzf "${FILE}"
+              rm "${FILE}"
+              echo "✓ Extraction completed"
+              echo "  Library: $LIB_PATH"
+          else
+              echo "ERROR: Failed to download $FILE from $IBM_CDN" >&2
+              exit 1
+          fi
+        shell: bash
+
       - name: Test python
         run: just test-python
         # Integration tests provision required services at test time via Testcontainers
+
+      - name: Test Informix connector
+        run: just test-python-informix
+        # Testcontainers provisions Informix container at test time if INFORMIX_URL is not set

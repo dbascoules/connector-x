@@ -19,14 +19,48 @@ The driver is publicly available from IBM and does **not** require an account.
 
 ### 1. Download the IBM CLI Driver
 
+The CI/CD pipeline automatically downloads the appropriate driver for each architecture.
+For local development, use the provided helper scripts below by OS/architecture.
+
+**macOS arm64 (M1/M2):**
 ```bash
-# Linux x86_64 (used for cross-compilation from macOS arm64)
+mkdir -p .libdb2-arm64/lib
+curl -L https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/macarm64_odbc_cli.tar.gz \
+  | tar -xz -C .libdb2-arm64 --strip-components=1
+```
+
+**macOS x86_64 (Intel):**
+```bash
+mkdir -p .libdb2-macos64/lib
+curl -L https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/macos64_odbc_cli.tar.gz \
+  | tar -xz -C .libdb2-macos64 --strip-components=1
+```
+
+**Linux x86_64:**
+```bash
 mkdir -p .libdb2-x86_64/clidriver-full
 curl -L https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/linuxx64_odbc_cli.tar.gz \
   | tar -xz -C .libdb2-x86_64/clidriver-full --strip-components=1
 ```
 
-Expected layout after extraction:
+**Linux aarch64:**
+```bash
+mkdir -p .libdb2-aarch64/clidriver-full
+curl -L https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/linuxx64_odbc_cli.tar.gz \
+  | tar -xz -C .libdb2-aarch64/clidriver-full --strip-components=1
+```
+
+**Windows x64:**
+```powershell
+# PowerShell
+New-Item -ItemType Directory -Path ".libdb2-win64" -Force | Out-Null
+$url = "https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/ntx64_odbc_cli.zip"
+Invoke-WebRequest -Uri $url -OutFile "ntx64_odbc_cli.zip"
+Expand-Archive -Path "ntx64_odbc_cli.zip" -DestinationPath ".libdb2-win64" -Force
+Remove-Item "ntx64_odbc_cli.zip"
+```
+
+Expected layout after extraction (example for Linux x86_64):
 
 ```
 .libdb2-x86_64/clidriver-full/
@@ -38,7 +72,36 @@ Expected layout after extraction:
   ...
 ```
 
-### 2. Start the Informix server container
+Or directly using `just` (auto-detects OS/arch):
+```bash
+cd /path/to/connector-x
+
+# On macOS arm64, downloads .libdb2-arm64/lib/libdb2.dylib
+# On macOS x86_64, downloads .libdb2-macos64/lib/libdb2.dylib
+# On Linux x86_64, downloads .libdb2-x86_64/clidriver-full/lib/libdb2.so
+# On Linux aarch64, downloads .libdb2-aarch64/clidriver-full/lib/libdb2.so
+# On Windows x64, downloads .libdb2-win64/bin/db2.dll
+just test-python-informix  # auto-downloads driver before testing
+```
+
+### 2. Run Python tests locally
+
+Build the Python extension and run tests (without a running Informix container):
+
+```bash
+just test-python-informix
+```
+
+**Result:** Tests are **skipped** by default (without `INFORMIX_URL`), which is expected. The build validates that the driver is correctly linked.
+
+To run tests with an actual Informix database, set `INFORMIX_URL` before running tests:
+
+```bash
+export INFORMIX_URL="informix://informix:in4mix@127.0.0.1:9089/connectorx"
+just test-python-informix
+```
+
+### 3. Start the Informix server container
 
 Pull and start the IBM Informix developer image:
 
@@ -51,7 +114,7 @@ docker run -d --name informix -h informix --privileged --platform linux/amd64 \
   icr.io/informix/informix-developer-database:latest
 ```
 
-### macOS arm64 (Apple Silicon) notes
+### 3.1 macOS arm64 (Apple Silicon) workaround
 
 The Informix developer image is amd64-only. On Apple Silicon, running it via emulation can fail during bootstrap with messages such as:
 
@@ -124,13 +187,13 @@ docker exec informix bash -lc 'onstat - | head -n 5'
 
 Expected state: `health=healthy` and Informix `On-Line`.
 
-### 3. Seed the test database
+### 4. Seed the test database
 
 ```bash
 just seed-db-informix informix connectorx
 ```
 
-### 4. Run Informix integration tests (Apple Silicon — recommended)
+### 5. Run Informix integration tests (Apple Silicon — recommended)
 
 On macOS arm64, cross-compile the test binary for `x86_64-unknown-linux-gnu` then run it inside a Docker container:
 
@@ -149,7 +212,7 @@ Prerequisites:
 - `.libdb2-x86_64/clidriver-full/lib/libdb2.so` present (see step 1)
 - `informix` Docker container running and healthy
 
-### Run tests natively (Linux x86_64 only)
+### 6. Run tests natively (Linux x86_64 only)
 
 On a native Linux x86_64 host with `IBM_DB_HOME` pointing to the CLI Driver:
 
@@ -162,7 +225,7 @@ cargo test -p connectorx --no-default-features --features fptr,dst_arrow,src_inf
   --test test_informix -- --ignored --nocapture
 ```
 
-### Troubleshooting: `ld: library 'db2' not found`
+### 7. Troubleshooting: `ld: library 'db2' not found`
 
 `IBM_DB_HOME` must be set to an **absolute path** containing `lib/libdb2.so`.
 A relative path causes the `build.rs` discovery to fail silently.
@@ -172,7 +235,7 @@ export IBM_DB_HOME="$(pwd)/.libdb2-x86_64/clidriver-full"
 ls "$IBM_DB_HOME/lib/libdb2.so"
 ```
 
-### Recommended on Apple Silicon: amd64 devcontainer
+### 8. Recommended on Apple Silicon: amd64 devcontainer
 
 If you prefer a persistent devcontainer environment instead of the cross-compile workflow:
 

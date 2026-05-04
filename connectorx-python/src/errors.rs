@@ -40,6 +40,9 @@ pub enum ConnectorXPythonError {
     OracleSourceError(#[from] connectorx::sources::oracle::OracleSourceError),
 
     #[error(transparent)]
+    InformixSourceError(#[from] connectorx::sources::informix::InformixSourceError),
+
+    #[error(transparent)]
     BigQuerySourceError(#[from] connectorx::sources::bigquery::BigQuerySourceError),
 
     #[error(transparent)]

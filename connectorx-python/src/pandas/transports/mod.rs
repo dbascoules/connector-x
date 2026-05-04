@@ -1,5 +1,6 @@
 mod bigquery;
 mod clickhouse;
+mod informix;
 mod mssql;
 mod mysql;
 mod oracle;
@@ -10,6 +11,7 @@ mod trino;
 pub use self::postgres::PostgresPandasTransport;
 pub use bigquery::BigQueryPandasTransport;
 pub use clickhouse::ClickHousePandasTransport;
+pub use informix::InformixPandasTransport;
 pub use mssql::MsSQLPandasTransport;
 pub use mysql::MysqlPandasTransport;
 pub use oracle::OraclePandasTransport;

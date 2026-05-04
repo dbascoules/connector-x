@@ -50,6 +50,76 @@ test-python +opts="": setup-python
 test-python-s +opts="":
     cd connectorx-python && poetry run pytest connectorx/tests -v -s {{opts}}
 
+# Build the Python extension then run Informix Python tests.
+# Supports: macOS (arm64/x86_64), Linux (x86_64/aarch64), Windows (x64)
+# Usage: just test-python-informix
+# Optional env: IBM_DB_HOME (autodetected by OS/arch when omitted)
+# Required env for DB tests: INFORMIX_URL
+test-python-informix:
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        ROOT="{{justfile_directory()}}"
+        OS="$(uname -s)"
+        ARCH="$(uname -m)"
+
+        if [[ -z "${IBM_DB_HOME:-}" ]]; then
+            case "$OS" in
+                Darwin)
+                    # macOS: arm64 (M1/M2) or x86_64 (Intel)
+                    if [[ "$ARCH" == "arm64" ]]; then
+                        IBM_DB_HOME="${ROOT}/.libdb2-arm64"
+                    else
+                        IBM_DB_HOME="${ROOT}/.libdb2-macos64"
+                    fi
+                    ;;
+                Linux)
+                    # Linux: x86_64 or aarch64
+                    if [[ "$ARCH" == "aarch64" ]]; then
+                        IBM_DB_HOME="${ROOT}/.libdb2-aarch64/clidriver-full"
+                    else
+                        IBM_DB_HOME="${ROOT}/.libdb2-x86_64/clidriver-full"
+                    fi
+                    ;;
+                MINGW64*|MSYS*)
+                    # Windows: x64
+                    IBM_DB_HOME="${ROOT}/.libdb2-win64"
+                    ;;
+                *)
+                    echo "ERROR: OS non supporté: $OS" >&2
+                    exit 1
+                    ;;
+            esac
+        fi
+
+        export IBM_DB_HOME
+
+        case "$OS" in
+            Darwin)
+                LIB_FILE="${IBM_DB_HOME}/lib/libdb2.dylib"
+                export DYLD_LIBRARY_PATH="${IBM_DB_HOME}/lib${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}"
+                export DYLD_FALLBACK_LIBRARY_PATH="${IBM_DB_HOME}/lib${DYLD_FALLBACK_LIBRARY_PATH:+:${DYLD_FALLBACK_LIBRARY_PATH}}"
+                ;;
+            Linux)
+                LIB_FILE="${IBM_DB_HOME}/lib/libdb2.so"
+                export LD_LIBRARY_PATH="${IBM_DB_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+                ;;
+            MINGW64*|MSYS*)
+                LIB_FILE="${IBM_DB_HOME}/bin/db2.dll"
+                export PATH="${IBM_DB_HOME}/bin${PATH:+:${PATH}}"
+                ;;
+        esac
+
+        if [[ ! -f "$LIB_FILE" ]]; then
+            echo "ERROR: bibliothèque IBM CLI introuvable: $LIB_FILE" >&2
+            echo "Set IBM_DB_HOME vers votre clidriver (ex: .../.libdb2-x86_64/clidriver-full)." >&2
+            exit 1
+        fi
+
+        cd "${ROOT}/connectorx-python"
+        poetry run maturin develop --release
+        poetry run pytest connectorx/tests/test_informix.py -v -s
+
 seed-db:
     #!/bin/bash
     psql $POSTGRES_URL -f scripts/postgres.sql

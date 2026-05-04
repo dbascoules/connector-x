@@ -17,7 +17,7 @@ use crate::sources::trino::TrinoDialect;
 #[cfg(feature = "src_sqlite")]
 use crate::sql::get_partition_range_query_sep;
 #[allow(unused_imports)]
-use crate::sql::{single_col_partition_query, CXQuery};
+use crate::sql::{get_partition_range_query, single_col_partition_query, CXQuery};
 use anyhow::anyhow;
 use fehler::{throw, throws};
 #[cfg(feature = "src_bigquery")]
@@ -48,6 +48,8 @@ use sqlparser::dialect::SQLiteDialect;
 use tiberius::Client;
 #[cfg(any(feature = "src_bigquery", feature = "src_mssql", feature = "src_trino"))]
 use tokio::{net::TcpStream, runtime::Runtime};
+#[cfg(feature = "src_clickhouse")]
+use std::sync::Arc;
 #[cfg(feature = "src_mssql")]
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 #[allow(unused_imports)]

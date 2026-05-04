@@ -10,12 +10,14 @@ pub use self::destination::{PandasBlockInfo, PandasDestination, PandasPartitionD
 use self::dispatcher::PandasDispatcher;
 pub use self::transports::{
     BigQueryPandasTransport, ClickHousePandasTransport, MsSQLPandasTransport, MysqlPandasTransport,
-    OraclePandasTransport, PostgresPandasTransport, SqlitePandasTransport, TrinoPandasTransport,
+    InformixPandasTransport, OraclePandasTransport, PostgresPandasTransport,
+    SqlitePandasTransport, TrinoPandasTransport,
 };
 pub use self::typesystem::{PandasDType, PandasTypeSystem};
 use crate::errors::ConnectorXPythonError;
 use connectorx::source_router::{SourceConn, SourceType};
 use connectorx::sources::clickhouse::ClickHouseSource;
+use connectorx::sources::informix::InformixSource;
 use connectorx::sources::oracle::OracleSource;
 use connectorx::{
     prelude::*,
@@ -216,6 +218,16 @@ pub fn write_pandas<'a, 'py: 'a>(
         SourceType::Oracle => {
             let source = OracleSource::new(&source_conn.conn[..], queries.len())?;
             let dispatcher = PandasDispatcher::<_, OraclePandasTransport>::new(
+                source,
+                destination,
+                queries,
+                origin_query,
+            );
+            dispatcher.run(py)?
+        }
+        SourceType::Informix => {
+            let source = InformixSource::new(&source_conn.conn[..], queries.len())?;
+            let dispatcher = PandasDispatcher::<_, InformixPandasTransport>::new(
                 source,
                 destination,
                 queries,

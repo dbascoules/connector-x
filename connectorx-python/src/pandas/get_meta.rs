@@ -3,7 +3,8 @@ use super::{
     dispatcher::PandasDispatcher,
     transports::{
         BigQueryPandasTransport, ClickHousePandasTransport, MsSQLPandasTransport,
-        MysqlPandasTransport, OraclePandasTransport, PostgresPandasTransport,
+        InformixPandasTransport, MysqlPandasTransport, OraclePandasTransport,
+        PostgresPandasTransport,
         SqlitePandasTransport, TrinoPandasTransport,
     },
 };
@@ -14,6 +15,7 @@ use connectorx::{
     sources::{
         bigquery::BigQuerySource,
         clickhouse::ClickHouseSource,
+        informix::InformixSource,
         mssql::MsSQLSource,
         mysql::{BinaryProtocol as MySQLBinaryProtocol, MySQLSource, TextProtocol},
         postgres::{
@@ -188,6 +190,17 @@ pub fn get_meta<'py>(
         SourceType::Oracle => {
             let source = OracleSource::new(&source_conn.conn[..], 1)?;
             let dispatcher = PandasDispatcher::<_, OraclePandasTransport>::new(
+                source,
+                destination,
+                queries,
+                None,
+            );
+            debug!("Running dispatcher");
+            dispatcher.get_meta(py)?
+        }
+        SourceType::Informix => {
+            let source = InformixSource::new(&source_conn.conn[..], 1)?;
+            let dispatcher = PandasDispatcher::<_, InformixPandasTransport>::new(
                 source,
                 destination,
                 queries,

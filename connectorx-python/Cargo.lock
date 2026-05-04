@@ -1404,6 +1404,7 @@ dependencies = [
  "futures",
  "gcp-bigquery-client",
  "hex",
+ "ibm_informix_bridge",
  "itertools 0.14.0",
  "j4rs",
  "log",
@@ -3335,6 +3336,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ibm_informix_bridge"
+version = "0.1.0"
+dependencies = [
+ "thiserror 1.0.69",
 ]
 
 [[package]]
