@@ -55,12 +55,6 @@ jobs:
           IBM_CDN="https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli"
           FILE="linuxx64_odbc_cli.tar.gz"
           EXTRACT_DIR=".libdb2-x86_64"
-          LIB_PATH="${EXTRACT_DIR}/clidriver-full/lib/libdb2.so"
-
-          if [[ -f "${LIB_PATH}" ]]; then
-              echo "IBM CLI Driver already present: ${LIB_PATH}"
-              exit 0
-          fi
 
           mkdir -p "${EXTRACT_DIR}"
           cd "${EXTRACT_DIR}"
@@ -69,7 +63,19 @@ jobs:
           tar -xzf "${FILE}"
           rm -f "${FILE}"
 
-          test -f "clidriver-full/lib/libdb2.so"
+          if [[ -f "clidriver/lib/libdb2.so" ]]; then
+            echo "IBM_DB_HOME=${GITHUB_WORKSPACE}/${EXTRACT_DIR}/clidriver" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if [[ -f "clidriver-full/lib/libdb2.so" ]]; then
+            echo "IBM_DB_HOME=${GITHUB_WORKSPACE}/${EXTRACT_DIR}/clidriver-full" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "ERROR: libdb2.so not found after extraction" >&2
+          find . -maxdepth 3 -type f -name 'libdb2.so*' -print || true
+          exit 1
         shell: bash
 
       - uses: PyO3/maturin-action@v1
@@ -94,8 +100,8 @@ jobs:
         env:
           SQLITE3_STATIC: 1
           IFX_CLIENT_LIB: db2
-          IBM_DB_HOME: ${{ github.workspace }}/.libdb2-x86_64/clidriver-full
-          LD_LIBRARY_PATH: ${{ github.workspace }}/.libdb2-x86_64/clidriver-full/lib
+          IBM_DB_HOME: ${{ env.IBM_DB_HOME }}
+          LD_LIBRARY_PATH: ${{ env.IBM_DB_HOME }}/lib
 
       - uses: actions/upload-artifact@v7
         with:
