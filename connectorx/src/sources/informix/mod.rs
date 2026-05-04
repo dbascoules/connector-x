@@ -105,7 +105,7 @@ fn describe_columns(conn_str: &str, query: &str) -> (Vec<String>, Vec<InformixTy
 }
 
 #[throws(InformixSourceError)]
-fn fetch_rows(conn_str: &str, query: &str, ncols: usize) -> Vec<Vec<Option<String>>> {
+fn fetch_rows(conn_str: &str, query: &str, ncols: usize, schema: &[InformixTypeSystem]) -> Vec<Vec<Option<String>>> {
     let conn = Connection::connect(conn_str)?;
     let stmt = Statement::execute(&conn, query)?;
 
@@ -118,7 +118,38 @@ fn fetch_rows(conn_str: &str, query: &str, ncols: usize) -> Vec<Vec<Option<Strin
 
         let mut row = Vec::with_capacity(ncols);
         for col in 1..=ncols as u16 {
-            row.push(stmt.get_data_string(col, 8192)?);
+            let col_idx = (col - 1) as usize;
+            let value = if col_idx < schema.len() {
+                match schema[col_idx] {
+                    InformixTypeSystem::Boolean(_) => match stmt.get_data_bit(col)? {
+                        None => None,
+                        Some(false) => Some("0".to_string()),
+                        Some(true) => Some("1".to_string()),
+                    },
+                    // Some Informix drivers expose BOOLEAN as SMALLINT and may not
+                    // reliably convert it through SQL_C_CHAR or SQL_C_LONG.
+                    InformixTypeSystem::SmallInt(_) => {
+                        if let Some(v) = stmt.get_data_smallint(col)? {
+                            Some(v.to_string())
+                        } else if let Some(s) = stmt.get_data_string(col, 8192)? {
+                            Some(s)
+                        } else if let Some(v) = stmt.get_data_int(col)? {
+                            Some(v.to_string())
+                        } else {
+                            match stmt.get_data_bit(col)? {
+                                None => None,
+                                Some(false) => Some("0".to_string()),
+                                Some(true) => Some("1".to_string()),
+                            }
+                        }
+                    }
+                    InformixTypeSystem::Integer(_) => stmt.get_data_int(col)?.map(|v| v.to_string()),
+                    _ => stmt.get_data_string(col, 8192)?,
+                }
+            } else {
+                stmt.get_data_string(col, 8192)?
+            };
+            row.push(value);
         }
         rows.push(row);
     }
@@ -210,6 +241,7 @@ where
 pub struct InformixSourcePartition {
     conn_str: String,
     query: CXQuery<String>,
+    schema: Vec<InformixTypeSystem>,
     rows_cache: Option<Vec<Vec<Option<String>>>>,
     nrows: usize,
     ncols: usize,
@@ -220,6 +252,7 @@ impl InformixSourcePartition {
         Self {
             conn_str,
             query,
+            schema: schema.to_vec(),
             rows_cache: None,
             nrows: 0,
             ncols: schema.len(),
@@ -229,7 +262,7 @@ impl InformixSourcePartition {
     #[throws(InformixSourceError)]
     fn ensure_rows_loaded(&mut self) {
         if self.rows_cache.is_none() {
-            self.rows_cache = Some(fetch_rows(&self.conn_str, self.query.as_str(), self.ncols)?);
+            self.rows_cache = Some(fetch_rows(&self.conn_str, self.query.as_str(), self.ncols, &self.schema)?);
         }
     }
 }

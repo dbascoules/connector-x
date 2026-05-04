@@ -21,7 +21,7 @@ fn test_informix_types() {
     let mut source = InformixSource::new(&dburl, 1)
         .unwrap_or_else(|e| panic!("InformixSource::new failed: {}", e));
     source.set_queries(&[CXQuery::naked(
-        "select test_bool, test_smallint, test_int, test_bigint, test_float, test_double, test_decimal, test_char, test_varchar, test_text, test_date, test_datetime, test_nullable from test_types order by test_int",
+        "select test_bool, test_smallint, test_int, test_bigint, test_float, test_double, test_decimal, test_char, test_varchar, test_text, test_date, test_datetime, test_nullable from test_types order by case when test_int is null then 1 else 0 end, test_int",
     )]);
     source
         .fetch_metadata()

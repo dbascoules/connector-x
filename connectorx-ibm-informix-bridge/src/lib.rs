@@ -28,9 +28,15 @@
 //!     println!();
 //! }
 //! ```
+//!
+//! # Debug
+//! Set `INFORMIX_BRIDGE_DEBUG=1` to print bridge diagnostics to stderr
+//! (connection details with masked password, `SQLDescribeCol`, and `SQLGetData`
+//! indicators). Disabled by default.
 
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_long, c_short, c_ulong, c_void};
+use std::sync::OnceLock;
 
 // ---------------------------------------------------------------------------
 // ODBC / DB2 CLI constants
@@ -49,6 +55,9 @@ const SQL_HANDLE_STMT: c_short = 3;
 
 // SQLGetData / SQLBindCol target types
 const SQL_C_CHAR: c_short = 1;
+const SQL_C_SHORT: c_short = 5;
+const SQL_C_LONG: c_short = 4;
+const SQL_C_BIT: c_short = -7;
 
 // SQLDriverConnect option
 const SQL_DRIVER_NOPROMPT: c_short = 0;
@@ -62,6 +71,10 @@ const SQL_NTS: c_long = -3;
 
 // Diag buffer size
 const DIAG_BUF: usize = 1024;
+
+// Environment variable enabling verbose bridge diagnostics.
+// Default is disabled.
+const INFORMIX_BRIDGE_DEBUG_ENV: &str = "INFORMIX_BRIDGE_DEBUG";
 
 // ---------------------------------------------------------------------------
 // Raw FFI declarations (identical API surface for libifcli and libdb2)
@@ -138,7 +151,21 @@ extern "C" {
         buf_length: c_short,
         text_length: *mut c_short,
     ) -> c_short;
+
+    fn SQLColAttribute(
+        stmt_handle: *mut c_void,
+        col_number: c_short,
+        field_identifier: c_short,
+        char_attr: *mut c_void,
+        buffer_length: c_short,
+        string_length: *mut c_short,
+        numeric_attr: *mut isize,
+    ) -> c_short;
 }
+
+// SQLColAttribute field identifiers (ODBC/CLI compatible values)
+const SQL_COLUMN_TYPE: c_short = 2;
+const SQL_COLUMN_TYPE_NAME: c_short = 14;
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -213,6 +240,75 @@ fn is_ok(rc: c_short) -> bool {
     rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO
 }
 
+#[inline]
+fn bridge_debug_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var(INFORMIX_BRIDGE_DEBUG_ENV)
+            .ok()
+            .map(|v| {
+                let v = v.trim().to_ascii_lowercase();
+                matches!(v.as_str(), "1" | "true" | "yes" | "on")
+            })
+            .unwrap_or(false)
+    })
+}
+
+#[inline]
+fn bridge_debug_log(message: &str) {
+    if bridge_debug_enabled() {
+        eprintln!("[ibm_informix_bridge] {}", message);
+    }
+}
+
+fn debug_log_col_attributes(stmt_handle: *mut c_void, col: u16) {
+    if !bridge_debug_enabled() {
+        return;
+    }
+
+    let mut numeric_type: isize = 0;
+    let mut num_len: c_short = 0;
+    let rc_num = unsafe {
+        SQLColAttribute(
+            stmt_handle,
+            col as c_short,
+            SQL_COLUMN_TYPE,
+            std::ptr::null_mut(),
+            0,
+            &mut num_len,
+            &mut numeric_type,
+        )
+    };
+
+    let mut type_name_buf = [0i8; 128];
+    let mut type_name_len: c_short = 0;
+    let mut unused_numeric: isize = 0;
+    let rc_name = unsafe {
+        SQLColAttribute(
+            stmt_handle,
+            col as c_short,
+            SQL_COLUMN_TYPE_NAME,
+            type_name_buf.as_mut_ptr() as *mut c_void,
+            type_name_buf.len() as c_short,
+            &mut type_name_len,
+            &mut unused_numeric,
+        )
+    };
+
+    let type_name = if is_ok(rc_name) {
+        unsafe { CStr::from_ptr(type_name_buf.as_ptr()) }
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        String::from("<unavailable>")
+    };
+
+    bridge_debug_log(&format!(
+        "col_attribute col={} rc_type={} type={} rc_type_name={} type_name='{}'",
+        col, rc_num, numeric_type, rc_name, type_name
+    ));
+}
+
 // ---------------------------------------------------------------------------
 // Connection
 // ---------------------------------------------------------------------------
@@ -273,6 +369,11 @@ impl Connection {
         let mut out_buf = vec![0i8; 1024];
         let mut out_len: c_short = 0;
 
+        bridge_debug_log(&format!(
+            "connecting with DSN (masked PWD): {}",
+            mask_password_in_dsn(dsn)
+        ));
+
         let rc = unsafe {
             SQLDriverConnect(
                 dbc,
@@ -288,12 +389,15 @@ impl Connection {
 
         if !is_ok(rc) {
             let msg = get_diag(SQL_HANDLE_DBC, dbc);
+            bridge_debug_log(&format!("SQLDriverConnect failed: {}", msg));
             unsafe {
                 SQLFreeHandle(SQL_HANDLE_DBC, dbc);
                 SQLFreeHandle(SQL_HANDLE_ENV, env);
             }
             return Err(BridgeError::Connect(msg));
         }
+
+        bridge_debug_log("connection established");
 
         Ok(Connection { env, dbc })
     }
@@ -346,10 +450,13 @@ impl Statement {
         }
 
         let sql_c = CString::new(sql)?;
+        bridge_debug_log(&format!("executing SQL: {}", sql));
+
         let rc = unsafe { SQLExecDirect(stmt, sql_c.as_ptr(), SQL_NTS) };
 
         if !is_ok(rc) {
             let msg = get_diag(SQL_HANDLE_STMT, stmt);
+            bridge_debug_log(&format!("SQLExecDirect failed: {}", msg));
             unsafe { SQLFreeHandle(SQL_HANDLE_STMT, stmt) };
             return Err(BridgeError::Execute(msg));
         }
@@ -399,6 +506,18 @@ impl Statement {
         let name = unsafe { CStr::from_ptr(name_buf.as_ptr()) }
             .to_string_lossy()
             .into_owned();
+
+        bridge_debug_log(&format!(
+            "describe_col col={} name='{}' sql_type={} size={} decimal_digits={} nullable={}",
+            col,
+            name,
+            data_type,
+            col_size,
+            decimal_digits,
+            nullable
+        ));
+
+        debug_log_col_attributes(self.handle, col);
 
         Ok(ColDesc {
             name,
@@ -450,6 +569,11 @@ impl Statement {
             return Err(BridgeError::GetData(msg));
         }
 
+        bridge_debug_log(&format!(
+            "get_data_string col={} rc={} ind={} buf_len={}",
+            col, rc, ind, buf_len
+        ));
+
         if ind == SQL_NULL_DATA {
             return Ok(None);
         }
@@ -460,6 +584,128 @@ impl Statement {
 
         Ok(Some(s))
     }
+
+    /// Retrieve column `col` (1-based) from the current row as a 32-bit integer.
+    ///
+    /// Returns `None` for SQL NULL values.
+    /// Useful for BOOLEAN and small integer columns where string conversion may fail.
+    pub fn get_data_int(&self, col: u16) -> Result<Option<i32>, BridgeError> {
+        let mut value: c_long = 0;
+        let mut ind: c_int = 0;
+
+        let rc = unsafe {
+            SQLGetData(
+                self.handle,
+                col as c_short,
+                SQL_C_LONG,
+                &mut value as *mut c_long as *mut c_void,
+                std::mem::size_of::<c_long>() as c_int,
+                &mut ind,
+            )
+        };
+
+        if !is_ok(rc) {
+            let msg = get_diag(SQL_HANDLE_STMT, self.handle);
+            return Err(BridgeError::GetData(msg));
+        }
+
+        bridge_debug_log(&format!("get_data_int col={} rc={} ind={}", col, rc, ind));
+
+        if ind == SQL_NULL_DATA {
+            return Ok(None);
+        }
+
+        Ok(Some(value as i32))
+    }
+
+    /// Retrieve column `col` (1-based) from the current row as a 16-bit integer.
+    ///
+    /// Returns `None` for SQL NULL values.
+    /// Useful for Informix SMALLINT and BOOLEAN columns exposed via SMALLINT.
+    pub fn get_data_smallint(&self, col: u16) -> Result<Option<i16>, BridgeError> {
+        let mut value: c_short = 0;
+        let mut ind: c_int = 0;
+
+        let rc = unsafe {
+            SQLGetData(
+                self.handle,
+                col as c_short,
+                SQL_C_SHORT,
+                &mut value as *mut c_short as *mut c_void,
+                std::mem::size_of::<c_short>() as c_int,
+                &mut ind,
+            )
+        };
+
+        if !is_ok(rc) {
+            let msg = get_diag(SQL_HANDLE_STMT, self.handle);
+            return Err(BridgeError::GetData(msg));
+        }
+
+        bridge_debug_log(&format!(
+            "get_data_smallint col={} rc={} ind={}",
+            col, rc, ind
+        ));
+
+        if ind == SQL_NULL_DATA {
+            return Ok(None);
+        }
+
+        Ok(Some(value as i16))
+    }
+
+    /// Retrieve column `col` (1-based) from the current row as a boolean bit.
+    ///
+    /// Returns `None` for SQL NULL values.
+    /// Useful for BOOLEAN columns that may not support string conversion via SQL_C_CHAR.
+    pub fn get_data_bit(&self, col: u16) -> Result<Option<bool>, BridgeError> {
+        let mut value: u8 = 0;
+        let mut ind: c_int = 0;
+
+        let rc = unsafe {
+            SQLGetData(
+                self.handle,
+                col as c_short,
+                SQL_C_BIT,
+                &mut value as *mut u8 as *mut c_void,
+                std::mem::size_of::<u8>() as c_int,
+                &mut ind,
+            )
+        };
+
+        if !is_ok(rc) {
+            let msg = get_diag(SQL_HANDLE_STMT, self.handle);
+            return Err(BridgeError::GetData(msg));
+        }
+
+        bridge_debug_log(&format!("get_data_bit col={} rc={} ind={}", col, rc, ind));
+
+        if ind == SQL_NULL_DATA {
+            return Ok(None);
+        }
+
+        Ok(Some(value != 0))
+    }
+}
+
+fn mask_password_in_dsn(dsn: &str) -> String {
+    dsn.split(';')
+        .map(|part| {
+            if part.is_empty() {
+                String::new()
+            } else {
+                let mut kv = part.splitn(2, '=');
+                let key = kv.next().unwrap_or("");
+                let value = kv.next().unwrap_or("");
+                if key.eq_ignore_ascii_case("PWD") {
+                    format!("{}=****", key)
+                } else {
+                    format!("{}={}", key, value)
+                }
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(";")
 }
 
 impl Drop for Statement {
