@@ -41,7 +41,7 @@ jobs:
       - name: Install tools
         run: |
           yum install -y epel-release
-          yum install -y mysql-devel postgresql-devel freetds-devel krb5-libs clang-devel libffi-devel
+          yum install -y mysql-devel postgresql-devel freetds-devel krb5-libs krb5-devel clang-devel libffi-devel
 
       - name: Setup project
         run: |
