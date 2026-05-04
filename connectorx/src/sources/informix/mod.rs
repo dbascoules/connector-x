@@ -11,8 +11,11 @@ use crate::{
     sql::CXQuery,
 };
 use anyhow::anyhow;
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use fehler::{throw, throws};
+use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::str::FromStr;
 use ibm_informix_bridge::{Connection, Statement};
 use url::Url;
 use urlencoding::decode;
@@ -92,10 +95,10 @@ fn describe_columns(conn_str: &str, query: &str) -> (Vec<String>, Vec<InformixTy
         let name = if col.name.is_empty() {
             format!("COL{}", i)
         } else {
-            col.name
+            col.name.clone()
         };
         names.push(name);
-        schema.push(InformixTypeSystem::Text(col.nullable));
+        schema.push(InformixTypeSystem::from(&col));
     }
 
     (names, schema)
@@ -296,6 +299,58 @@ impl InformixSourceParser {
 
         val
     }
+
+    #[throws(InformixSourceError)]
+    fn next_required<T>(&mut self) -> T
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let s = self
+            .next_val()?
+            .ok_or_else(|| ConnectorXError::cannot_produce::<T>(None))?;
+        s.parse()
+            .map_err(|_| ConnectorXError::cannot_produce::<T>(Some(s.into())))?
+    }
+
+    #[throws(InformixSourceError)]
+    fn next_optional<T>(&mut self) -> Option<T>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        match self.next_val()? {
+            None => None,
+            Some(s) => Some(
+                s.parse()
+                    .map_err(|_| ConnectorXError::cannot_produce::<T>(Some(s.into())))?,
+            ),
+        }
+    }
+
+    #[throws(InformixSourceError)]
+    fn next_bool(&mut self) -> bool {
+        let s = self
+            .next_val()?
+            .ok_or_else(|| ConnectorXError::cannot_produce::<bool>(None))?;
+        match s.to_ascii_lowercase().as_str() {
+            "t" | "true" | "1" | "y" | "yes" => true,
+            "f" | "false" | "0" | "n" | "no" => false,
+            _ => throw!(ConnectorXError::cannot_produce::<bool>(Some(s.into()))),
+        }
+    }
+
+    #[throws(InformixSourceError)]
+    fn next_optional_bool(&mut self) -> Option<bool> {
+        match self.next_val()? {
+            None => None,
+            Some(s) => Some(match s.to_ascii_lowercase().as_str() {
+                "t" | "true" | "1" | "y" | "yes" => true,
+                "f" | "false" | "0" | "n" | "no" => false,
+                _ => throw!(ConnectorXError::cannot_produce::<bool>(Some(s.into()))),
+            }),
+        }
+    }
 }
 
 impl<'a> PartitionParser<'a> for InformixSourceParser {
@@ -313,8 +368,7 @@ impl<'r> Produce<'r, String> for InformixSourceParser {
 
     #[throws(InformixSourceError)]
     fn produce(&'r mut self) -> String {
-        self.next_val()?
-            .ok_or_else(|| ConnectorXError::cannot_produce::<String>(None))?
+        self.next_required::<String>()?
     }
 }
 
@@ -324,5 +378,130 @@ impl<'r> Produce<'r, Option<String>> for InformixSourceParser {
     #[throws(InformixSourceError)]
     fn produce(&'r mut self) -> Option<String> {
         self.next_val()?
+    }
+}
+
+macro_rules! impl_parse_num {
+    ($t:ty) => {
+        impl<'r> Produce<'r, $t> for InformixSourceParser {
+            type Error = InformixSourceError;
+
+            #[throws(InformixSourceError)]
+            fn produce(&'r mut self) -> $t {
+                self.next_required::<$t>()?
+            }
+        }
+
+        impl<'r> Produce<'r, Option<$t>> for InformixSourceParser {
+            type Error = InformixSourceError;
+
+            #[throws(InformixSourceError)]
+            fn produce(&'r mut self) -> Option<$t> {
+                self.next_optional::<$t>()?
+            }
+        }
+    };
+}
+
+impl_parse_num!(i16);
+impl_parse_num!(i32);
+impl_parse_num!(i64);
+impl_parse_num!(f32);
+impl_parse_num!(f64);
+impl_parse_num!(Decimal);
+
+impl<'r> Produce<'r, bool> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> bool {
+        self.next_bool()?
+    }
+}
+
+impl<'r> Produce<'r, Option<bool>> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> Option<bool> {
+        self.next_optional_bool()?
+    }
+}
+
+impl<'r> Produce<'r, NaiveDate> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> NaiveDate {
+        let s = self.next_required::<String>()?;
+        NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+            .map_err(|_| ConnectorXError::cannot_produce::<NaiveDate>(Some(s.into())))?
+    }
+}
+
+impl<'r> Produce<'r, Option<NaiveDate>> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> Option<NaiveDate> {
+        match self.next_val()? {
+            None => None,
+            Some(s) => Some(
+                NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+                    .map_err(|_| ConnectorXError::cannot_produce::<NaiveDate>(Some(s.into())))?,
+            ),
+        }
+    }
+}
+
+impl<'r> Produce<'r, NaiveTime> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> NaiveTime {
+        let s = self.next_required::<String>()?;
+        NaiveTime::parse_from_str(&s, "%H:%M:%S%.f")
+            .map_err(|_| ConnectorXError::cannot_produce::<NaiveTime>(Some(s.into())))?
+    }
+}
+
+impl<'r> Produce<'r, Option<NaiveTime>> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> Option<NaiveTime> {
+        match self.next_val()? {
+            None => None,
+            Some(s) => Some(
+                NaiveTime::parse_from_str(&s, "%H:%M:%S%.f")
+                    .map_err(|_| ConnectorXError::cannot_produce::<NaiveTime>(Some(s.into())))?,
+            ),
+        }
+    }
+}
+
+impl<'r> Produce<'r, NaiveDateTime> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> NaiveDateTime {
+        let s = self.next_required::<String>()?;
+        NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S%.f")
+            .map_err(|_| ConnectorXError::cannot_produce::<NaiveDateTime>(Some(s.into())))?
+    }
+}
+
+impl<'r> Produce<'r, Option<NaiveDateTime>> for InformixSourceParser {
+    type Error = InformixSourceError;
+
+    #[throws(InformixSourceError)]
+    fn produce(&'r mut self) -> Option<NaiveDateTime> {
+        match self.next_val()? {
+            None => None,
+            Some(s) => Some(
+                NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S%.f")
+                    .map_err(|_| ConnectorXError::cannot_produce::<NaiveDateTime>(Some(s.into())))?,
+            ),
+        }
     }
 }
