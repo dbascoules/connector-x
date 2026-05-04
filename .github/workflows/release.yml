@@ -47,6 +47,31 @@ jobs:
         run: |
           just bootstrap-python
 
+      - name: Download IBM DB2 CLI Driver for Informix
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          IBM_CDN="https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli"
+          FILE="linuxx64_odbc_cli.tar.gz"
+          EXTRACT_DIR=".libdb2-x86_64"
+          LIB_PATH="${EXTRACT_DIR}/clidriver-full/lib/libdb2.so"
+
+          if [[ -f "${LIB_PATH}" ]]; then
+              echo "IBM CLI Driver already present: ${LIB_PATH}"
+              exit 0
+          fi
+
+          mkdir -p "${EXTRACT_DIR}"
+          cd "${EXTRACT_DIR}"
+
+          curl -fSL "${IBM_CDN}/${FILE}" -o "${FILE}"
+          tar -xzf "${FILE}"
+          rm -f "${FILE}"
+
+          test -f "clidriver-full/lib/libdb2.so"
+        shell: bash
+
       - uses: PyO3/maturin-action@v1
         with:
           rust-toolchain: stable
@@ -68,6 +93,9 @@ jobs:
             fi
         env:
           SQLITE3_STATIC: 1
+          IFX_CLIENT_LIB: db2
+          IBM_DB_HOME: ${{ github.workspace }}/.libdb2-x86_64/clidriver-full
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.libdb2-x86_64/clidriver-full/lib
 
       - uses: actions/upload-artifact@v7
         with:
