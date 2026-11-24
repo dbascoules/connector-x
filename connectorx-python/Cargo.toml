@@ -73,6 +73,7 @@ fed_exec = ["connectorx/fed_exec"]
 nbstr = []
 srcs = [
   "connectorx/src_postgres",
+  "connectorx/src_redshift",
   "connectorx/src_mysql",
   "connectorx/src_sqlite",
   "connectorx/src_mssql",

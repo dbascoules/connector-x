@@ -107,6 +107,7 @@ ureq = { version = "2", features = ["json"] }
 all = [
   "src_sqlite",
   "src_postgres",
+  "src_redshift",
   "src_mysql",
   "src_mssql",
   "src_oracle",
@@ -158,8 +159,10 @@ src_postgres = [
   "postgres-openssl",
   "cidr-02",
   "pgvector",
-  "redshift-iam",
 ]
+# `redshift-iam://` connection strings (Redshift through IAM/PingFed). Separate from `src_postgres` because it pulls in
+# the AWS SDK, which plain Postgres users do not need.
+src_redshift = ["src_postgres", "redshift-iam"]
 src_sqlite = [
   "rusqlite",
   "r2d2_sqlite",
