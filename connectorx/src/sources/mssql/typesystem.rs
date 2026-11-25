@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use rust_decimal::Decimal;
 use tiberius::{ColumnData, ColumnType, FromSql};
-use uuid_old::Uuid;
+use uuid::Uuid;
 
 // https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/ce3183a6-9d89-47e8-a02f-de5a1a1303de
 #[derive(Copy, Clone, Debug)]
@@ -65,13 +65,14 @@ impl<'a> From<&'a ColumnType> for MsSQLTypeSystem {
         use MsSQLTypeSystem::*;
 
         match ty {
-            ColumnType::Int1 => Tinyint(false),
-            ColumnType::Int2 => Smallint(false),
-            ColumnType::Int4 => Int(false),
-            ColumnType::Int8 => Bigint(false),
+            // Since Tiberius 0.11.8 (prisma/tiberius#347), a nullable integer or float column (INTN, FLTN on the
+            // wire) is reported by its size, like a NOT NULL one (Int4, Float8...), and Tiberius does not expose the
+            // nullable flag. Read them all as the nullable variable-length types, as Tiberius 0.7 reported nullable
+            // columns: i64 and f64, a NULL never fails. NOT NULL columns become nullable, and NOT NULL `real` reads
+            // as f64 instead of f32 (exact).
+            ColumnType::Int1 | ColumnType::Int2 | ColumnType::Int4 | ColumnType::Int8 => Intn(true),
             ColumnType::Intn => Intn(true),
-            ColumnType::Float4 => Float24(false),
-            ColumnType::Float8 => Float53(false),
+            ColumnType::Float4 | ColumnType::Float8 => Floatn(true),
             ColumnType::Floatn => Floatn(true),
             ColumnType::Bit => Bit(false),
             ColumnType::Bitn => Bit(true), // nullable int, var-length

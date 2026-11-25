@@ -14,21 +14,21 @@ mod csv_arrow;
 mod dummy_arrow;
 #[cfg(all(feature = "src_dummy", feature = "dst_arrow"))]
 mod dummy_arrowstream;
-#[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
 mod mssql_arrow;
-#[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
 mod mssql_arrowstream;
-#[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
 mod mysql_arrow;
-#[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
 mod mysql_arrowstream;
 #[cfg(all(feature = "src_oracle", feature = "dst_arrow"))]
 mod oracle_arrow;
 #[cfg(all(feature = "src_oracle", feature = "dst_arrow"))]
 mod oracle_arrowstream;
-#[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
 mod postgres_arrow;
-#[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
 mod postgres_arrowstream;
 #[cfg(all(feature = "src_sqlite", feature = "dst_arrow"))]
 mod sqlite_arrow;
@@ -56,16 +56,16 @@ pub use clickhouse_arrowstream::{
 pub use csv_arrow::CSVArrowTransport;
 #[cfg(all(feature = "src_dummy", feature = "dst_arrow"))]
 pub use dummy_arrow::DummyArrowTransport;
-#[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
 pub use mssql_arrow::{MsSQLArrowTransport, MsSQLArrowTransportError};
-#[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
 pub use mssql_arrowstream::{
     MsSQLArrowTransport as MsSQLArrowStreamTransport,
     MsSQLArrowTransportError as MsSQLArrowStreamTransportError,
 };
-#[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
 pub use mysql_arrow::{MySQLArrowTransport, MySQLArrowTransportError};
-#[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
 pub use mysql_arrowstream::{
     MySQLArrowTransport as MySQLArrowStreamTransport,
     MySQLArrowTransportError as MySQLArrowStreamTransportError,
@@ -77,9 +77,9 @@ pub use oracle_arrowstream::{
     OracleArrowTransport as OracleArrowStreamTransport,
     OracleArrowTransportError as OracleArrowStreamTransportError,
 };
-#[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
 pub use postgres_arrow::{PostgresArrowTransport, PostgresArrowTransportError};
-#[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+#[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
 pub use postgres_arrowstream::{
     PostgresArrowTransport as PostgresArrowStreamTransport,
     PostgresArrowTransportError as PostgresArrowStreamTransportError,

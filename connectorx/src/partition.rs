@@ -6,13 +6,13 @@ use crate::source_router::{SourceConn, SourceType};
 use crate::sources::bigquery::BigQueryDialect;
 #[cfg(feature = "src_clickhouse")]
 use crate::sources::clickhouse::{ClickHouseSource, ClickHouseSourceError};
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 use crate::sources::mssql::{mssql_config, FloatN, IntN, MsSQLTypeSystem};
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 use crate::sources::mysql::{build_opts, MySQLTypeSystem};
 #[cfg(feature = "src_oracle")]
 use crate::sources::oracle::{OracleDialect, OracleSource};
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use crate::sources::postgres::{rewrite_tls_args, PostgresTypeSystem};
 #[cfg(feature = "src_trino")]
 use crate::sources::trino::TrinoDialect;
@@ -23,13 +23,13 @@ use anyhow::anyhow;
 use fehler::{throw, throws};
 #[cfg(feature = "src_bigquery")]
 use gcp_bigquery_client;
-#[cfg(feature = "src_mysql")]
-use r2d2_mysql::mysql::{prelude::Queryable, Pool, Row};
+#[cfg(feature = "src_mysql_common")]
+use mysql::{prelude::Queryable, Pool, Row};
 #[cfg(feature = "src_sqlite")]
 use rusqlite::{types::Type, Connection};
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use rust_decimal_macros::dec;
 #[cfg(feature = "src_clickhouse")]
 use serde::Deserialize;
@@ -37,19 +37,19 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 #[cfg(feature = "src_clickhouse")]
 use sqlparser::dialect::ClickHouseDialect;
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 use sqlparser::dialect::MsSqlDialect;
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 use sqlparser::dialect::MySqlDialect;
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use sqlparser::dialect::PostgreSqlDialect;
 #[cfg(feature = "src_sqlite")]
 use sqlparser::dialect::SQLiteDialect;
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 use tiberius::Client;
-#[cfg(any(feature = "src_bigquery", feature = "src_mssql", feature = "src_trino"))]
+#[cfg(any(feature = "src_bigquery", feature = "src_mssql_common", feature = "src_trino"))]
 use tokio::{net::TcpStream, runtime::Runtime};
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 use url::Url;
 
@@ -100,13 +100,13 @@ pub fn partition(part: &PartitionQuery, source_conn: &SourceConn) -> OutResult<V
 
 pub fn get_col_range(source_conn: &SourceConn, query: &str, col: &str) -> OutResult<(i64, i64)> {
     match source_conn.ty {
-        #[cfg(feature = "src_postgres")]
+        #[cfg(feature = "src_postgres_common")]
         SourceType::Postgres => pg_get_partition_range(&source_conn.conn, query, col),
         #[cfg(feature = "src_sqlite")]
         SourceType::SQLite => sqlite_get_partition_range(&source_conn.conn, query, col),
-        #[cfg(feature = "src_mysql")]
+        #[cfg(feature = "src_mysql_common")]
         SourceType::MySQL => mysql_get_partition_range(&source_conn.conn, query, col),
-        #[cfg(feature = "src_mssql")]
+        #[cfg(feature = "src_mssql_common")]
         SourceType::MsSQL => mssql_get_partition_range(&source_conn.conn, query, col),
         #[cfg(feature = "src_oracle")]
         SourceType::Oracle => oracle_get_partition_range(&source_conn.conn, query, col),
@@ -129,7 +129,7 @@ pub fn get_part_query(
     upper: i64,
 ) -> CXQuery<String> {
     let query = match source_conn.ty {
-        #[cfg(feature = "src_postgres")]
+        #[cfg(feature = "src_postgres_common")]
         SourceType::Postgres => {
             single_col_partition_query(query, col, lower, upper, &PostgreSqlDialect {})?
         }
@@ -137,11 +137,11 @@ pub fn get_part_query(
         SourceType::SQLite => {
             single_col_partition_query(query, col, lower, upper, &SQLiteDialect {})?
         }
-        #[cfg(feature = "src_mysql")]
+        #[cfg(feature = "src_mysql_common")]
         SourceType::MySQL => {
             single_col_partition_query(query, col, lower, upper, &MySqlDialect {})?
         }
-        #[cfg(feature = "src_mssql")]
+        #[cfg(feature = "src_mssql_common")]
         SourceType::MsSQL => {
             single_col_partition_query(query, col, lower, upper, &MsSqlDialect {})?
         }
@@ -166,7 +166,7 @@ pub fn get_part_query(
     CXQuery::Wrapped(query)
 }
 
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 #[throws(ConnectorXOutError)]
 fn pg_get_partition_range(conn: &Url, query: &str, col: &str) -> (i64, i64) {
     let (config, tls) = rewrite_tls_args(conn)?;
@@ -272,7 +272,7 @@ fn sqlite_get_partition_range(conn: &Url, query: &str, col: &str) -> (i64, i64) 
     (min_v, max_v)
 }
 
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 #[throws(ConnectorXOutError)]
 fn mysql_get_partition_range(conn: &Url, query: &str, col: &str) -> (i64, i64) {
     let pool = Pool::new(build_opts(conn.as_str())?)?;
@@ -403,7 +403,7 @@ fn mysql_get_partition_range(conn: &Url, query: &str, col: &str) -> (i64, i64) {
     (min_v, max_v)
 }
 
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 #[throws(ConnectorXOutError)]
 fn mssql_get_partition_range(conn: &Url, query: &str, col: &str) -> (i64, i64) {
     let rt = Runtime::new().expect("Failed to create runtime");

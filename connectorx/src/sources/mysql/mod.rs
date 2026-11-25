@@ -2,6 +2,7 @@
 
 mod connection;
 mod errors;
+mod pool;
 mod typesystem;
 
 pub use self::connection::build_opts;
@@ -18,10 +19,8 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use fehler::{throw, throws};
 use log::{debug, warn};
 use r2d2::{Pool, PooledConnection};
-use r2d2_mysql::{
-    mysql::{prelude::Queryable, Binary, Column, QueryResult, Row, Text},
-    MySqlConnectionManager,
-};
+use mysql::{prelude::Queryable, Binary, Column, QueryResult, Row, Text};
+use pool::MySqlConnectionManager;
 use rust_decimal::Decimal;
 use serde_json::Value;
 use sqlparser::dialect::MySqlDialect;

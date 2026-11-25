@@ -1,5 +1,5 @@
 use super::errors::MySQLSourceError;
-use r2d2_mysql::mysql::{Opts, OptsBuilder, SslOpts};
+use mysql::{Opts, OptsBuilder, SslOpts};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use url::Url;

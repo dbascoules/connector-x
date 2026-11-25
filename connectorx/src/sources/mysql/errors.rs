@@ -6,10 +6,10 @@ pub enum MySQLSourceError {
     ConnectorXError(#[from] crate::errors::ConnectorXError),
 
     #[error(transparent)]
-    MySQLError(#[from] r2d2_mysql::mysql::Error),
+    MySQLError(#[from] mysql::Error),
 
     #[error(transparent)]
-    MySQLUrlError(#[from] r2d2_mysql::mysql::UrlError),
+    MySQLUrlError(#[from] mysql::UrlError),
 
     #[error(transparent)]
     MySQLPoolError(#[from] r2d2::Error),

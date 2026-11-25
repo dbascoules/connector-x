@@ -6,7 +6,7 @@ mod typesystem;
 
 pub use self::errors::PostgresSourceError;
 pub use cidr_02::IpInet;
-pub use connection::rewrite_tls_args;
+pub use connection::{rewrite_tls_args, MakeTlsConnector};
 pub use pgvector::{Bit, HalfVector, SparseVector, Vector};
 pub use typesystem::{PostgresTypePairs, PostgresTypeSystem};
 

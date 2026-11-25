@@ -34,27 +34,27 @@ pub enum ConnectorXOutError {
     #[error(transparent)]
     ConnectorXInternalError(#[from] ConnectorXError),
 
-    #[cfg(feature = "src_postgres")]
+    #[cfg(feature = "src_postgres_common")]
     #[error(transparent)]
     PostgresSourceError(#[from] crate::sources::postgres::PostgresSourceError),
 
-    #[cfg(feature = "src_postgres")]
+    #[cfg(feature = "src_postgres_common")]
     #[error(transparent)]
     PostgresError(#[from] postgres::Error),
 
-    #[cfg(feature = "src_mysql")]
+    #[cfg(feature = "src_mysql_common")]
     #[error(transparent)]
     MySQLSourceError(#[from] crate::sources::mysql::MySQLSourceError),
 
-    #[cfg(feature = "src_mysql")]
+    #[cfg(feature = "src_mysql_common")]
     #[error(transparent)]
-    MysqlError(#[from] r2d2_mysql::mysql::Error),
+    MysqlError(#[from] mysql::Error),
 
-    #[cfg(feature = "src_mssql")]
+    #[cfg(feature = "src_mssql_common")]
     #[error(transparent)]
     MsSQLSourceError(#[from] crate::sources::mssql::MsSQLSourceError),
 
-    #[cfg(feature = "src_mssql")]
+    #[cfg(feature = "src_mssql_common")]
     #[error(transparent)]
     MsSQL(#[from] tiberius::error::Error),
 
@@ -94,19 +94,19 @@ pub enum ConnectorXOutError {
     #[error(transparent)]
     ArrowStreamError(#[from] crate::destinations::arrowstream::ArrowDestinationError),
 
-    #[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
     #[error(transparent)]
     PostgresArrowTransportError(#[from] crate::transports::PostgresArrowTransportError),
 
-    #[cfg(all(feature = "src_postgres", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_postgres_common", feature = "dst_arrow"))]
     #[error(transparent)]
     PostgresArrowStreamTransportError(#[from] crate::transports::PostgresArrowStreamTransportError),
 
-    #[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
     #[error(transparent)]
     MySQLArrowTransportError(#[from] crate::transports::MySQLArrowTransportError),
 
-    #[cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
     #[error(transparent)]
     MySQLArrowStreamTransportError(#[from] crate::transports::MySQLArrowStreamTransportError),
 
@@ -118,11 +118,11 @@ pub enum ConnectorXOutError {
     #[error(transparent)]
     SQLiteArrowStreamTransportError(#[from] crate::transports::SQLiteArrowStreamTransportError),
 
-    #[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
     #[error(transparent)]
     MsSQLArrowTransportError(#[from] crate::transports::MsSQLArrowTransportError),
 
-    #[cfg(all(feature = "src_mssql", feature = "dst_arrow"))]
+    #[cfg(all(feature = "src_mssql_common", feature = "dst_arrow"))]
     #[error(transparent)]
     MsSQLArrowStreamTransportError(#[from] crate::transports::MsSQLArrowStreamTransportError),
 

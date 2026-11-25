@@ -16,7 +16,7 @@ use cidr_02::IpInet;
 use num_traits::ToPrimitive;
 use pgvector::{Bit, HalfVector, SparseVector, Vector};
 use postgres::NoTls;
-use postgres_openssl::MakeTlsConnector;
+use crate::sources::postgres::MakeTlsConnector;
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::marker::PhantomData;

@@ -1,4 +1,4 @@
-#![cfg(all(feature = "src_mysql", feature = "dst_arrow"))]
+#![cfg(all(feature = "src_mysql_common", feature = "dst_arrow"))]
 
 mod test_db;
 
@@ -239,7 +239,7 @@ pub fn verify_arrow_results(result: Vec<RecordBatch>) {
 // Charset ids used below: 63 = binary, 45 = utf8mb4_general_ci, 46 = utf8mb4_bin, 65 = ascii_bin.
 
 use connectorx::sources::mysql::MySQLTypeSystem;
-use r2d2_mysql::mysql::consts::{ColumnFlags, ColumnType};
+use mysql::consts::{ColumnFlags, ColumnType};
 
 /// BINARY shares its type code with CHAR (MYSQL_TYPE_STRING). The binary charset
 /// (63) is what marks it as binary, so it must map to TinyBlob, not Char.

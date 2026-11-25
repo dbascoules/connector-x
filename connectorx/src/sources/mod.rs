@@ -9,13 +9,13 @@ pub mod clickhouse;
 pub mod csv;
 #[cfg(feature = "src_dummy")]
 pub mod dummy;
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 pub mod mssql;
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 pub mod mysql;
 #[cfg(feature = "src_oracle")]
 pub mod oracle;
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 pub mod postgres;
 #[cfg(feature = "src_sqlite")]
 pub mod sqlite;

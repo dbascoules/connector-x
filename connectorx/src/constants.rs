@@ -21,10 +21,10 @@ const KILO: usize = 1 << 10;
 pub const RECORD_BATCH_SIZE: usize = 64 * KILO;
 
 #[cfg(any(
-    feature = "src_postgres",
-    feature = "src_mysql",
+    feature = "src_postgres_common",
+    feature = "src_mysql_common",
     feature = "src_oracle",
-    feature = "src_mssql"
+    feature = "src_mssql_common"
 ))]
 pub const DB_BUFFER_SIZE: usize = 32;
 

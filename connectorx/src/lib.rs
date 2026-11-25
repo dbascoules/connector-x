@@ -194,13 +194,13 @@ pub mod prelude {
     pub use crate::sources::csv::CSVSource;
     #[cfg(feature = "src_dummy")]
     pub use crate::sources::dummy::DummySource;
-    #[cfg(feature = "src_mssql")]
+    #[cfg(feature = "src_mssql_common")]
     pub use crate::sources::mssql::MsSQLSource;
-    #[cfg(feature = "src_mysql")]
+    #[cfg(feature = "src_mysql_common")]
     pub use crate::sources::mysql::MySQLSource;
     #[cfg(feature = "src_oracle")]
     pub use crate::sources::oracle::OracleSource;
-    #[cfg(feature = "src_postgres")]
+    #[cfg(feature = "src_postgres_common")]
     pub use crate::sources::postgres::PostgresSource;
     #[cfg(feature = "src_sqlite")]
     pub use crate::sources::sqlite::SQLiteSource;

@@ -29,8 +29,9 @@ polars = { workspace = true, optional = true, features = [
   "lazy",
 ] }
 polars-arrow = { workspace = true, optional = true }
-bb8 = { version = "0.7", optional = true }
-bb8-tiberius = { version = "0.8", optional = true }
+bb8 = { version = "0.9", optional = true }
+# The TLS backend of Tiberius is chosen by `src_mssql` (native-tls) or `src_mssql_rustls` (rustls).
+bb8-tiberius = { version = "0.17", default-features = false, features = ["with-tokio"], optional = true }
 csv = { version = "1", optional = true }
 fallible-streaming-iterator = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
@@ -48,10 +49,16 @@ postgres = { version = "0.19", features = [
 ], optional = true }
 postgres-native-tls = { version = "0.5", optional = true }
 postgres-openssl = { version = "0.5", optional = true }
-mysql_common = { version = "0.32", features = ["chrono"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "aws_lc_rs"], optional = true }
+tokio-postgres-rustls = { version = "0.14", features = ["aws-lc-rs"], optional = true }
+# Without its defaults (`flate2/zlib`, a C zlib): `src_mysql` and `src_mysql_rustls` take the other features through
+# the `mysql` presets (`default`, `default-rustls`).
+mysql_common = { version = "0.32", default-features = false, features = ["chrono"], optional = true }
 r2d2 = { version = "0.8", optional = true }
 r2d2-oracle = { version = "0.7", features = ["chrono"], optional = true }
-r2d2_mysql = { version = "25", optional = true }
+# `default-features = false`: the TLS backend is chosen by `src_mysql` (native-tls, the `mysql` defaults) or
+# `src_mysql_rustls` (rustls, the `mysql` rustls defaults). The r2d2 manager is in `sources/mysql/pool.rs`.
+mysql = { version = "25", default-features = false, optional = true }
 r2d2_postgres = { version = "0.18", optional = true }
 r2d2_sqlite = { version = "0.31", optional = true }
 redshift-iam = { version = "0.3", optional = true }
@@ -64,10 +71,11 @@ rusqlite = { version = "0.37", features = [
 ], optional = true }
 rust_decimal = { version = "1", features = ["db-postgres"], optional = true }
 rust_decimal_macros = { version = "1", optional = true }
-tiberius = { version = "0.7", features = [
+tiberius = { version = "0.13", default-features = false, features = [
+  "tds73",
+  "winauth",
   "rust_decimal",
   "chrono",
-  "integrated-auth-gssapi",
 ], optional = true }
 tokio = { version = "1", features = [
   "rt",
@@ -77,7 +85,6 @@ tokio = { version = "1", features = [
 tokio-util = { version = "0.7", features = ["compat"], optional = true }
 urlencoding = { version = "2.1", optional = true }
 uuid = { version = "1", optional = true }
-uuid_old = { package = "uuid", version = "0.8", optional = true }
 j4rs = { version = "0.22", optional = true }
 datafusion = { version = "50.3", optional = true }
 prusto = { version = "0.5", optional = true }
@@ -129,7 +136,11 @@ fptr = []
 src_bigquery = ["gcp-bigquery-client", "tokio"]
 src_csv = ["csv", "regex"]
 src_dummy = ["num-traits"]
-src_mssql = [
+# `src_mssql` (TLS by native-tls, OpenSSL on Linux) and `src_mssql_rustls` (TLS by rustls) are mutually exclusive:
+# Tiberius does not build with both backends.
+src_mssql = ["src_mssql_common", "tiberius/native-tls"]
+src_mssql_rustls = ["src_mssql_common", "tiberius/rustls"]
+src_mssql_common = [
   "rust_decimal",
   "num-traits",
   "tiberius",
@@ -137,16 +148,26 @@ src_mssql = [
   "bb8",
   "tokio",
   "tokio-util",
-  "uuid_old",
+  "uuid",
   "futures",
   "urlencoding",
 ]
-src_mysql = ["r2d2_mysql", "mysql_common", "rust_decimal", "num-traits", "r2d2"]
+src_mysql = ["src_mysql_common", "mysql/default"]
+src_mysql_rustls = ["src_mysql_common", "mysql/default-rustls"]
+src_mysql_common = ["mysql", "mysql_common", "rust_decimal", "num-traits", "r2d2"]
 src_oracle = ["oracle", "r2d2-oracle", "r2d2", "urlencoding", "rust_decimal"]
+# TLS by OpenSSL (`src_postgres`) or by rustls (`src_postgres_rustls`, no C library). With both, OpenSSL is used.
 src_postgres = [
+  "src_postgres_common",
+  "native-tls",
+  "openssl",
+  "postgres-native-tls",
+  "postgres-openssl",
+]
+src_postgres_rustls = ["src_postgres_common", "rustls", "tokio-postgres-rustls"]
+src_postgres_common = [
   "postgres",
   "r2d2_postgres",
-  "postgres-native-tls",
   "csv",
   "hex",
   "uuid",
@@ -154,9 +175,6 @@ src_postgres = [
   "rust_decimal_macros",
   "num-traits",
   "r2d2",
-  "native-tls",
-  "openssl",
-  "postgres-openssl",
   "cidr-02",
   "pgvector",
 ]
@@ -192,7 +210,8 @@ src_clickhouse = [
 ]
 federation = ["j4rs"]
 fed_exec = ["datafusion", "tokio"]
-integrated-auth-gssapi = ["tiberius/integrated-auth-gssapi"]
+# Kerberos for `trusted_connection=true` outside Windows. Links libgssapi_krb5, so it is opt-in.
+integrated-auth-gssapi = ["tiberius?/integrated-auth-gssapi"]
 
 [package.metadata.docs.rs]
 features = ["all"]

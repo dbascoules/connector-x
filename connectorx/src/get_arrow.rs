@@ -1,6 +1,6 @@
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 use crate::sources::mysql::{BinaryProtocol as MySQLBinaryProtocol, TextProtocol};
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use crate::sources::postgres::{
     rewrite_tls_args, BinaryProtocol as PgBinaryProtocol, CSVProtocol, CursorProtocol,
     SimpleProtocol,
@@ -12,10 +12,10 @@ use crate::{
 };
 use fehler::{throw, throws};
 use log::debug;
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 use postgres::NoTls;
-#[cfg(feature = "src_postgres")]
-use postgres_openssl::MakeTlsConnector;
+#[cfg(feature = "src_postgres_common")]
+use crate::sources::postgres::MakeTlsConnector;
 #[allow(unused_imports)]
 use std::sync::Arc;
 
@@ -32,7 +32,7 @@ pub fn get_arrow(
     debug!("Protocol: {}", protocol);
 
     match source_conn.ty {
-        #[cfg(feature = "src_postgres")]
+        #[cfg(feature = "src_postgres_common")]
         SourceType::Postgres => {
             let (config, tls) = rewrite_tls_args(&source_conn.conn)?;
             match (protocol, tls) {
@@ -160,7 +160,7 @@ pub fn get_arrow(
                 _ => unimplemented!("{} protocol not supported", protocol),
             }
         }
-        #[cfg(feature = "src_mysql")]
+        #[cfg(feature = "src_mysql_common")]
         SourceType::MySQL => match protocol {
             "binary" => {
                 let source =
@@ -202,7 +202,7 @@ pub fn get_arrow(
             );
             dispatcher.run()?;
         }
-        #[cfg(feature = "src_mssql")]
+        #[cfg(feature = "src_mssql_common")]
         SourceType::MsSQL => {
             let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create runtime"));
             let source = MsSQLSource::new(rt, &source_conn.conn[..], queries.len())?;
@@ -284,7 +284,7 @@ pub fn new_record_batch_iter(
     debug!("Protocol: {}", protocol);
 
     match source_conn.ty {
-        #[cfg(feature = "src_postgres")]
+        #[cfg(feature = "src_postgres_common")]
         SourceType::Postgres => {
             let (config, tls) = rewrite_tls_args(&source_conn.conn)?;
             match (protocol, tls) {
@@ -390,7 +390,7 @@ pub fn new_record_batch_iter(
                 _ => unimplemented!("{} protocol not supported", protocol),
             }
         }
-        #[cfg(feature = "src_mysql")]
+        #[cfg(feature = "src_mysql_common")]
         SourceType::MySQL => match protocol {
             "binary" => {
                 let mut source =
@@ -439,7 +439,7 @@ pub fn new_record_batch_iter(
             let iter: Box<dyn RecordBatchIterator> = Box::new(batch_iter);
             return iter;
         }
-        #[cfg(feature = "src_mssql")]
+        #[cfg(feature = "src_mssql_common")]
         SourceType::MsSQL => {
             let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create runtime"));
             let source = MsSQLSource::new(rt, &source_conn.conn[..], queries.len())?;

@@ -30,7 +30,7 @@ use tiberius::{AuthMethod, Config, EncryptionLevel, QueryItem, QueryStream, Row}
 use tokio::runtime::{Handle, Runtime};
 use url::Url;
 use urlencoding::decode;
-use uuid_old::Uuid;
+use uuid::Uuid;
 
 type Conn<'a> = PooledConnection<'a, ConnectionManager>;
 pub struct MsSQLSource {
@@ -104,6 +104,10 @@ pub fn mssql_config(url: &Url) -> Config {
         Some(appname) => config.application_name(decode(appname)?.to_owned()),
         _ => {}
     };
+
+    // Tiberius 0.13 bounds each round trip to 30 s by default; Tiberius 0.7 did not bound them. Keep it unbounded:
+    // a long sort or aggregation must not fail.
+    config.command_timeout(None);
 
     config
 }

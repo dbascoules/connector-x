@@ -50,7 +50,7 @@ fn wait_for_tcp_ready(host: &str, port: u16, timeout: Duration, label: &str) {
     }
 }
 
-#[cfg(feature = "src_postgres")]
+#[cfg(feature = "src_postgres_common")]
 pub fn postgres_url() -> String {
     if let Ok(url) = env::var("POSTGRES_URL") {
         return url;
@@ -105,7 +105,7 @@ pub fn postgres_url() -> String {
     }
 }
 
-#[cfg(feature = "src_mysql")]
+#[cfg(feature = "src_mysql_common")]
 pub fn mysql_url() -> String {
     MYSQL_INIT.call_once(|| {
         if env::var("MYSQL_URL").is_ok() {
@@ -159,7 +159,7 @@ pub fn mysql_url() -> String {
     env::var("MYSQL_URL").expect("MYSQL_URL must be set")
 }
 
-#[cfg(feature = "src_mssql")]
+#[cfg(feature = "src_mssql_common")]
 pub fn mssql_url() -> String {
     MSSQL_INIT.call_once(|| {
         if env::var("MSSQL_URL").is_ok() {
